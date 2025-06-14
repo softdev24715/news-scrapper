@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Scraper Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-ok { color: green; }
+        .status-error { color: red; }
+        .status-disabled { color: gray; }
+        .btn-loading {
+            position: relative;
+            color: transparent !important;
+        }
+        .btn-loading::after {
+            content: "";
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: auto;
+            border: 4px solid transparent;
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: button-loading-spinner 1s ease infinite;
+        }
+        @keyframes button-loading-spinner {
+            from {
+                transform: rotate(0turn);
+            }
+            to {
+                transform: rotate(1turn);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>News Scraper Dashboard</h1>
+        
+        <div class="row mb-4">
+            <div class="col">
+                <button class="btn btn-success" onclick="startAllSpiders()" id="startAllBtn">Start All</button>
+                <button class="btn btn-danger" onclick="stopAllSpiders()" id="stopAllBtn">Stop All</button>
+                <button class="btn btn-primary" onclick="runAllSpiders()" id="runAllBtn">Run All</button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Spider Name</th>
+                        <th>Status</th>
+                        <th>Last Update</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="spiderTable">
+                    <!-- Spider rows will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let runningSpiders = new Set();
+
+        // Fetch and display spider status
+        function updateSpiderStatus() {
+            fetch('/api/scraper/status')
+                .then(response => response.json())
+                .then(data => {
+                    const table = document.getElementById('spiderTable');
+                    table.innerHTML = '';
+                    
+                    data.spiders.forEach(spider => {
+                        const row = document.createElement('tr');
+                        const isRunning = runningSpiders.has(spider.name);
+                        row.innerHTML = `
+                            <td>${spider.name}</td>
+                            <td class="status-${spider.status}">${spider.status}</td>
+                            <td>${new Date(spider.last_update).toLocaleString()}</td>
+                            <td>
+                                <button class="btn btn-sm btn-success" onclick="startSpider('${spider.name}')" 
+                                    ${spider.enabled ? 'disabled' : ''}>Start</button>
+                                <button class="btn btn-sm btn-danger" onclick="stopSpider('${spider.name}')" 
+                                    ${!spider.enabled ? 'disabled' : ''}>Stop</button>
+                                <button class="btn btn-sm btn-primary" onclick="runSpider('${spider.name}')" 
+                                    id="run-${spider.name}" ${isRunning ? 'disabled' : ''}>Run</button>
+                            </td>
+                        `;
+                        table.appendChild(row);
+
+                        // If spider is running, add loading state to its run button
+                        if (isRunning) {
+                            const runButton = document.getElementById(`run-${spider.name}`);
+                            runButton.classList.add('btn-loading');
+                        }
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Run specific spider
+        function runSpider(spiderName) {
+            const runButton = document.getElementById(`run-${spiderName}`);
+            runButton.classList.add('btn-loading');
+            runButton.disabled = true;
+            runningSpiders.add(spiderName);
+            
+            fetch('/api/scraper/immediate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spiders: [spiderName] })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Keep checking status until spider is done
+                    const checkStatus = setInterval(() => {
+                        fetch('/api/scraper/status')
+                            .then(response => response.json())
+                            .then(statusData => {
+                                const spider = statusData.spiders.find(s => s.name === spiderName);
+                                if (spider && !spider.is_running) {
+                                    clearInterval(checkStatus);
+                                    runningSpiders.delete(spiderName);
+                                    updateSpiderStatus();
+                                }
+                            });
+                    }, 2000); // Check every 2 seconds
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                runningSpiders.delete(spiderName);
+                updateSpiderStatus();
+            });
+        }
+
+        // Start specific spider
+        function startSpider(spiderName) {
+            fetch('/api/scraper/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spiders: [spiderName] })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateSpiderStatus();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Stop specific spider
+        function stopSpider(spiderName) {
+            fetch('/api/scraper/stop', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spiders: [spiderName] })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateSpiderStatus();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Start all spiders
+        function startAllSpiders() {
+            fetch('/api/scraper/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spiders: [] })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateSpiderStatus();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Stop all spiders
+        function stopAllSpiders() {
+            fetch('/api/scraper/stop', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spiders: [] })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateSpiderStatus();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Run all spiders
+        function runAllSpiders() {
+            fetch('/api/scraper/immediate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spiders: [] })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateSpiderStatus();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Update status every 5 seconds
+        updateSpiderStatus();
+        setInterval(updateSpiderStatus, 5000);
+    </script>
+</body>
+</html> 

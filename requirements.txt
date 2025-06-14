@@ -1,0 +1,51 @@
+# Web Scraping
+scrapy==2.13.1
+beautifulsoup4==4.12.3
+fake-useragent==1.4.0
+scrapy-rotating-proxies==0.6.2
+scrapy-user-agents==0.1.1
+scrapy-splash==0.9.0
+scrapy-playwright==0.0.34
+playwright==1.42.0
+scrapy-zyte-api==0.9.0
+scrapy-zyte-smartproxy==0.3.0
+lxml==5.1.0
+cssselect==1.2.0
+w3lib==2.1.2
+itemadapter==0.8.0
+
+# Web Framework
+flask==3.0.2
+flask-cors==4.0.0
+werkzeug==3.0.1
+gunicorn==21.2.0
+python-dotenv==1.0.1
+
+# Database
+sqlalchemy==2.0.27
+psycopg2-binary==2.9.9
+alembic==1.13.1
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2024.1
+requests==2.31.0
+urllib3==2.2.1
+certifi==2024.2.2
+charset-normalizer==3.3.2
+idna==3.6
+six==1.16.0
+typing-extensions==4.9.0
+twisted==23.10.0
+service-identity==24.1.0
+pyopenssl==24.0.0
+cryptography==42.0.2
+pyasn1==0.5.1
+pyasn1-modules==0.3.0
+attrs==23.2.0
+incremental==22.10.0
+zope.interface==6.1
+h2==4.1.0
+priority==2.0.0
+hyperframe==6.0.1
+hpack==4.0  

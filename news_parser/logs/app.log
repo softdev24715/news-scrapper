@@ -1,0 +1,732 @@
+2025-06-14 19:30:21,774 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://198.19.255.253:5000
+2025-06-14 19:30:21,774 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-06-14 19:30:21,774 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:30:22,065 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:30:22,066 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:30:25,441 - web.app - ERROR - Database error: dictionary update sequence element #0 has length 4; 2 is required
+2025-06-14 19:30:25,442 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:30:25] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:30:35,428 - web.app - ERROR - Database error: dictionary update sequence element #0 has length 4; 2 is required
+2025-06-14 19:30:35,429 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:30:35] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:30:45,427 - web.app - ERROR - Database error: dictionary update sequence element #0 has length 4; 2 is required
+2025-06-14 19:30:45,427 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:30:45] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:30:55,428 - web.app - ERROR - Database error: dictionary update sequence element #0 has length 4; 2 is required
+2025-06-14 19:30:55,429 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:30:55] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:31:05,429 - web.app - ERROR - Database error: dictionary update sequence element #0 has length 4; 2 is required
+2025-06-14 19:31:05,429 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:31:05] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:31:09,297 - werkzeug - INFO -  * Detected change in '/home/logic/Other/Scrapy/news_parser/web/app.py', reloading
+2025-06-14 19:31:09,399 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:31:09,727 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:31:09,728 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:31:12,747 - werkzeug - INFO -  * Detected change in '/home/logic/Other/Scrapy/news_parser/web/app.py', reloading
+2025-06-14 19:31:12,850 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:31:13,263 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:31:13,263 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:31:15,439 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:31:15] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:31:19,115 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://198.19.255.253:5000
+2025-06-14 19:31:19,115 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-06-14 19:31:19,116 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:31:19,426 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:31:19,426 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:31:25,443 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:31:25] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:31:35,430 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:31:35] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:31:45,431 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:31:45] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:31:50,567 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:31:50] "GET /dashboard HTTP/1.1" 200 -
+2025-06-14 19:31:50,624 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:31:50] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+2025-06-14 19:31:53,055 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:31:53] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:31:58,064 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:31:58] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:31:59,335 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:31:59] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:31:59,345 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:31:59] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:03,061 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:03] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:07,125 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:07] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:07,132 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:07] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:08,058 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:08] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:09,062 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:09] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:09,070 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:09] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:09,374 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:09] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:09,385 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:09] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:09,391 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:09] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:09,403 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:09] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:09,822 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:09] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:09,834 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:09] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:10,199 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:10] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:10,208 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:10] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:12,092 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:12] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:12,103 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:12] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:12,917 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:12] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:12,924 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:12] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:13,056 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:13] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:13,487 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:13] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:13,503 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:13] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:14,045 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:14] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:14,061 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:14] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:14,469 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:14] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:14,488 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:14] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:14,981 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:14] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:14,987 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:14] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:15,447 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:15] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:15,459 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:15] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:15,855 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:15] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:15,871 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:15] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:16,182 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:16] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:16,188 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:16] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:16,588 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:16] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:16,604 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:16] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:16,997 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:16] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:17,005 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:17] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:17,304 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:17] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:17,310 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:17] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:17,487 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:17] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:17,495 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:17] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:18,057 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:18] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:18,165 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:18] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:18,170 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:18] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:19,101 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:19] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:19,106 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:19] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:21,636 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:21] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:21,642 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:21] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:23,057 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:23] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:24,492 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:24] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:24,510 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:24] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:25,196 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:25] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:25,211 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:25] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:25,740 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:25] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:25,746 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:25] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:26,269 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:26] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:26,277 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:26] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:26,644 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:26] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:26,662 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:26] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:27,022 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:27] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:27,028 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:27] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:27,374 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:27] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:27,380 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:27] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:27,813 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:27] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:27,828 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:27] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:28,056 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:28] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:28,221 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:28] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:28,227 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:28] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:28,548 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:28] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:28,561 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:28] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:33,058 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:33] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:34,646 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:34] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:34,652 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:34] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:35,037 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:35] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:35,050 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:35] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:35,660 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:35] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:35,668 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:35] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:36,068 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:36] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:36,082 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:36] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:36,471 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:36] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:36,482 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:36] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:36,885 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:36] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:36,900 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:36] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:37,276 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:37] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:37,282 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:37] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:37,703 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:37] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:37,717 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:37] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:38,059 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:38] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:38,435 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:38] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:38,451 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:38] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:39,339 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:39] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:39,351 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:39] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:39,835 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:39] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:39,851 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:39] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:41,158 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:41] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:32:41,170 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:41] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:42,068 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:42] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:42,088 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:42] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:42,461 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:42] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:42,467 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:42] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:42,853 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:42] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:42,871 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:42] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:43,056 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:43] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:43,309 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:43] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:43,319 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:43] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:43,668 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:43] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:43,676 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:43] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:44,011 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:44] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:44,018 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:44] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:44,379 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:44] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:44,385 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:44] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:44,748 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:44] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:44,755 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:44] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:45,308 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:45] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:45,319 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:45] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:46,348 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:46] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:46,358 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:46] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:47,387 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:47] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:47,408 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:47] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:47,788 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:47] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:32:47,792 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:47] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:48,056 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:48] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:53,057 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:53] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:32:58,061 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:32:58] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:33:03,056 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:33:03] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:33:08,060 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:33:08] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:33:13,057 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:33:13] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:33:18,058 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:33:18] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:33:23,057 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:33:23] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:33:28,062 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:33:28] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:33:33,057 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:33:33] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:33:38,058 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:33:38] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:33:43,063 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:33:43] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:33:48,056 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:33:48] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:33:53,056 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:33:53] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:33:58,058 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:33:58] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:03,057 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:03] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:08,056 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:08] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:13,055 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:13] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:18,055 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:18] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:23,057 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:23] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:28,057 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:28] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:33,059 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:33] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:38,057 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:38] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:43,058 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:43] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:43,228 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:43] "GET /dashboard HTTP/1.1" 200 -
+2025-06-14 19:34:43,248 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:43] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:44,284 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:44] "GET /dashboard HTTP/1.1" 200 -
+2025-06-14 19:34:44,303 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:44] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:44,793 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:44] "GET /dashboard HTTP/1.1" 200 -
+2025-06-14 19:34:44,813 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:44] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:45,134 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:45] "GET /dashboard HTTP/1.1" 200 -
+2025-06-14 19:34:45,152 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:45] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:45,338 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:45] "GET /dashboard HTTP/1.1" 200 -
+2025-06-14 19:34:45,362 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:45] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:50,367 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:50] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:53,829 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:53] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:34:53,840 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:53] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:53,844 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:53] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:34:53,858 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:53] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:54,357 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:54] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:34:54,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:54] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:54,852 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:54] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:34:54,857 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:54] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:55,196 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:55] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:34:55,207 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:55] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:55,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:55] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:55,540 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:55] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:34:55,544 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:55] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:55,941 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:55] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:34:55,947 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:55] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:56,493 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:56] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:34:56,499 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:56] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:56,909 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:56] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:34:56,915 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:56] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:57,229 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:57] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:34:57,242 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:57] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:57,669 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:57] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:34:57,676 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:57] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:57,956 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:57] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:34:57,963 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:57] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:58,261 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:58] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:34:58,276 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:58] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:58,884 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:58] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:34:58,894 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:58] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:59,190 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:59] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:34:59,195 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:59] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:59,543 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:59] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:34:59,550 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:59] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:34:59,844 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:59] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:34:59,860 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:34:59] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:00,213 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:00] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:00,227 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:00] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:00,362 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:00] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:00,582 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:00] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:00,594 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:00] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:03,390 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:03] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:03,397 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:03] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:04,310 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:04] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:04,315 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:04] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:04,901 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:04] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:04,913 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:04] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:05,366 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:05] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:05,390 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:05] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:05,398 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:05] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:05,918 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:05] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:05,931 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:05] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:06,605 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:06] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:06,614 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:06] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:07,056 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:07] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:07,064 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:07] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:07,390 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:07] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:07,399 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:07] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:07,662 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:07] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:07,666 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:07] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:08,070 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:08] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:08,082 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:08] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:08,430 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:08] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:08,436 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:08] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:09,134 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:09] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:09,149 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:09] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:10,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:10] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:13,016 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:13] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:13,021 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:13] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:13,439 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:13] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:13,451 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:13] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:14,122 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:14] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:14,135 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:14] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:15,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:15] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:20,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:20] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:25,369 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:25] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:30,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:30] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:35,369 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:35] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:40,365 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:40] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:45,365 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:45] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:47,581 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:47] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:47,588 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:47] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:50,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:50] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:50,596 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:50] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:50,607 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:50] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:51,021 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:51] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:51,025 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:51] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:51,468 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:51] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:51,475 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:51] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:51,780 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:51] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:51,790 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:51] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:52,060 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:52] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:52,073 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:52] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:52,357 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:52] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:52,362 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:52] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:53,373 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:53] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:53,379 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:53] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:53,821 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:53] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:53,826 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:53] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:54,894 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:54] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:54,909 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:54] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:55,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:55] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:56,549 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:56] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:56,559 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:56] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:56,950 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:56] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:56,960 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:56] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:58,198 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:58] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:35:58,211 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:58] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:35:59,576 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:59] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:35:59,591 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:35:59] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:00,230 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:00] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:36:00,245 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:00] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:00,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:00] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:00,862 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:00] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:36:00,868 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:00] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:01,256 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:01] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:36:01,263 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:01] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:01,559 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:01] "POST /api/scraper/stop HTTP/1.1" 200 -
+2025-06-14 19:36:01,564 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:01] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:05,374 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:05] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:10,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:10] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:15,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:15] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:15,783 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:15] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:36:15,787 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:15] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:16,143 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:16] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:36:16,154 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:16] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:16,447 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:16] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:36:16,453 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:16] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:16,880 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:16] "POST /api/scraper/start HTTP/1.1" 200 -
+2025-06-14 19:36:16,886 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:16] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:20,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:20] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:25,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:25] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:30,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:30] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:35,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:35] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:40,365 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:40] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:45,368 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:45] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:50,366 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:50] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:36:55,365 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:36:55] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:37:00,365 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:37:00] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:37:05,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:37:05] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:37:10,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:37:10] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:37:15,413 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:37:15] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:37:20,365 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:37:20] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:37:25,366 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:37:25] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:37:30,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:37:30] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:37:35,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:37:35] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:37:40,365 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:37:40] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:37:45,370 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:37:45] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:37:50,367 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:37:50] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:37:55,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:37:55] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:38:00,362 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:38:00] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:38:05,369 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:38:05] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:38:10,365 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:38:10] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:38:15,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:38:15] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:38:20,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:38:20] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:38:25,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:38:25] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:38:30,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:38:30] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:38:35,367 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:38:35] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:38:39,702 - werkzeug - INFO -  * Detected change in '/home/logic/Other/Scrapy/news_parser/web/app.py', reloading
+2025-06-14 19:38:39,818 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:38:40,136 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:38:40,136 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:38:40,378 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:38:40] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:38:45,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:38:45] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:38:50,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:38:50] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:38:55,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:38:55] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:00,256 - werkzeug - INFO -  * Detected change in '/home/logic/Other/Scrapy/news_parser/web/app.py', reloading
+2025-06-14 19:39:00,362 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:39:00,723 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:39:00,724 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:39:00,744 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:39:00] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:05,365 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:39:05] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:10,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:39:10] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:15,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:39:15] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:20,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:39:20] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:25,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:39:25] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:30,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:39:30] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:35,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:39:35] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:35,889 - werkzeug - INFO -  * Detected change in '/home/logic/Other/Scrapy/news_parser/news_parser/pipelines.py', reloading
+2025-06-14 19:39:35,991 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:39:36,283 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:39:36,284 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:39:40,374 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:39:40] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:42,316 - werkzeug - INFO -  * Detected change in '/home/logic/Other/Scrapy/news_parser/news_parser/settings.py', reloading
+2025-06-14 19:39:42,451 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:39:42,767 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:39:42,768 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:39:45,377 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:39:45] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:50,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:39:50] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:55,367 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:39:55] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:39:58,850 - werkzeug - INFO -  * Detected change in '/home/logic/Other/Scrapy/news_parser/news_parser/pipelines.py', reloading
+2025-06-14 19:39:58,970 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:39:59,286 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:39:59,287 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:40:00,374 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:40:00] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:40:05,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:40:05] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:40:10,365 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:40:10] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:40:15,362 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:40:15] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:40:20,362 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:40:20] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:40:25,366 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:40:25] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:40:30,366 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:40:30] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:40:35,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:40:35] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:40:40,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:40:40] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:40:41,495 - werkzeug - INFO -  * Detected change in '/home/logic/Other/Scrapy/news_parser/news_parser/pipelines.py', reloading
+2025-06-14 19:40:41,639 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:40:42,070 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:40:42,071 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:40:45,376 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:40:45] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:40:50,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:40:50] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:40:55,366 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:40:55] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:40:56,147 - werkzeug - INFO -  * Detected change in '/home/logic/Other/Scrapy/news_parser/news_parser/pipelines.py', reloading
+2025-06-14 19:40:56,234 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:40:56,541 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:40:56,542 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:41:00,374 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:00] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:05,363 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:05] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:10,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:10] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:15,364 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:15] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:16,675 - werkzeug - INFO -  * Detected change in '/home/logic/Other/Scrapy/news_parser/news_parser/pipelines.py', reloading
+2025-06-14 19:41:16,812 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:41:17,127 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:41:17,128 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:41:20,375 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:20] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:20,935 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:20] "GET /dashboard HTTP/1.1" 200 -
+2025-06-14 19:41:20,963 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:20] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:21,468 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:21] "GET /dashboard HTTP/1.1" 200 -
+2025-06-14 19:41:21,490 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:21] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:21,726 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:21] "GET /dashboard HTTP/1.1" 200 -
+2025-06-14 19:41:21,748 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:21] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:21,946 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:21] "GET /dashboard HTTP/1.1" 200 -
+2025-06-14 19:41:21,968 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:21] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:26,968 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:26] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:31,969 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:31] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:36,968 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:36] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:41,970 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:41] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:46,968 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:46] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:41:51,972 - werkzeug - INFO - 127.0.0.1 - - [14/Jun/2025 19:41:51] "GET /api/scraper/status HTTP/1.1" 200 -
+2025-06-14 19:43:58,233 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://198.19.255.253:5000
+2025-06-14 19:43:58,233 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-06-14 19:43:58,234 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:43:58,533 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:43:58,533 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 19:52:08,566 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://198.19.255.253:5001
+2025-06-14 19:52:08,566 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-06-14 19:52:08,567 - werkzeug - INFO -  * Restarting with stat
+2025-06-14 19:52:08,849 - werkzeug - WARNING -  * Debugger is active!
+2025-06-14 19:52:08,850 - werkzeug - INFO -  * Debugger PIN: 142-209-439
+2025-06-14 20:06:17,329 - web.app - ERROR - Error rendering dashboard: dictionary update sequence element #0 has length 6; 2 is required
+2025-06-14 20:08:05,994 - web.app - ERROR - Error running spider tass: [Errno 2] No such file or directory: '/app/news_parser'
+2025-06-14 20:09:26,126 - web.app - ERROR - Error running spider tass: 2025-06-14 20:09:24 [scrapy.utils.log] INFO: Scrapy 2.13.1 started (bot: news_parser)
+2025-06-14 20:09:24 [scrapy.utils.log] INFO: Versions:
+{'lxml': '5.1.0',
+ 'libxml2': '2.12.3',
+ 'cssselect': '1.2.0',
+ 'parsel': '1.10.0',
+ 'w3lib': '2.1.2',
+ 'Twisted': '23.10.0',
+ 'Python': '3.10.12 (main, Feb  4 2025, 14:57:36) [GCC 11.4.0]',
+ 'pyOpenSSL': '24.0.0 (OpenSSL 3.2.1 30 Jan 2024)',
+ 'cryptography': '42.0.2',
+ 'Platform': 'Linux-6.8.0-62-generic-x86_64-with-glibc2.35'}
+2025-06-14 20:09:24 [root] INFO: Initializing TASS spider for date: 2025-06-14
+2025-06-14 20:09:24 [root] INFO: Current processed URLs count: 0
+2025-06-14 20:09:24 [scrapy.addons] INFO: Enabled addons:
+[]
+2025-06-14 20:09:24 [py.warnings] WARNING: /home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/utils/request.py:120: ScrapyDeprecationWarning: 'REQUEST_FINGERPRINTER_IMPLEMENTATION' is a deprecated setting.
+It will be removed in a future version of Scrapy.
+  return cls(crawler)
+
+2025-06-14 20:09:24 [scrapy.middleware] INFO: Enabled extensions:
+['scrapy.extensions.corestats.CoreStats',
+ 'scrapy.extensions.memusage.MemoryUsage',
+ 'scrapy.extensions.logstats.LogStats']
+2025-06-14 20:09:24 [scrapy.crawler] INFO: Overridden settings:
+{'BOT_NAME': 'news_parser',
+ 'DOWNLOAD_DELAY': 3,
+ 'FEED_EXPORT_ENCODING': 'utf-8',
+ 'LOG_LEVEL': 'INFO',
+ 'NEWSPIDER_MODULE': 'news_parser.spiders',
+ 'REQUEST_FINGERPRINTER_IMPLEMENTATION': '2.7',
+ 'RETRY_TIMES': 3,
+ 'ROBOTSTXT_OBEY': True,
+ 'SPIDER_MODULES': ['news_parser.spiders'],
+ 'USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+               '(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+2025-06-14 20:09:24 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Android
+2025-06-14 20:09:24 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:24 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:24 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:24 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Sony BDV13, Brand: Sony, Model: BDV13
+2025-06-14 20:09:24 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Nintendo DSi, Brand: Nintendo, Model: DSi
+2025-06-14 20:09:24 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:24 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Other
+2025-06-14 20:09:24 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: LYF F90M, Brand: LYF, Model: F90M
+2025-06-14 20:09:24 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Sony BDV14, Brand: Sony, Model: BDV14
+2025-06-14 20:09:24 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: LG Web0S SmartTV, Brand: LG, Model: Web0S SmartTV
+2025-06-14 20:09:24 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Sony BDV11, Brand: Sony, Model: BDV11
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Nintendo DSi, Brand: Nintendo, Model: DSi
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: LYF LF-2403N, Brand: LYF, Model: LF-2403N
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: LYF F90M, Brand: LYF, Model: F90M
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Applebot
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Applebot
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Other
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Other
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: PhantomJS
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: SMTBot
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: PhantomJS
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: PhantomJS
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: WebKit Nightly
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: PhantomJS
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: PhantomJS
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: PhantomJS
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Robot
+2025-06-14 20:09:25 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:09:26 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Zune
+Unhandled error in Deferred:
+2025-06-14 20:09:26 [twisted] CRITICAL: Unhandled error in Deferred:
+
+Traceback (most recent call last):
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/crawler.py", line 339, in crawl
+    return self._crawl(crawler, *args, **kwargs)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/crawler.py", line 343, in _crawl
+    d = crawler.crawl(*args, **kwargs)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/twisted/internet/defer.py", line 2256, in unwindGenerator
+    return _cancellableInlineCallbacks(gen)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/twisted/internet/defer.py", line 2168, in _cancellableInlineCallbacks
+    _inlineCallbacks(None, gen, status, _copy_context())
+--- <exception caught here> ---
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/twisted/internet/defer.py", line 2000, in _inlineCallbacks
+    result = context.run(gen.send, result)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/crawler.py", line 156, in crawl
+    self.engine = self._create_engine()
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/crawler.py", line 169, in _create_engine
+    return ExecutionEngine(self, lambda _: self.stop())
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/core/engine.py", line 113, in __init__
+    self.close()
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/core/engine.py", line 173, in close
+    self.downloader.close()
+builtins.AttributeError: 'ExecutionEngine' object has no attribute 'downloader'
+
+2025-06-14 20:09:26 [twisted] CRITICAL: 
+Traceback (most recent call last):
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/core/engine.py", line 110, in __init__
+    self.downloader: Downloader = downloader_cls(crawler)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/core/downloader/__init__.py", line 109, in __init__
+    DownloaderMiddlewareManager.from_crawler(crawler)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/middleware.py", line 77, in from_crawler
+    return cls._from_settings(crawler.settings, crawler)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/middleware.py", line 88, in _from_settings
+    mw = build_from_crawler(mwcls, crawler)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/utils/misc.py", line 187, in build_from_crawler
+    instance = objcls.from_crawler(crawler, *args, **kwargs)  # type: ignore[attr-defined]
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/rotating_proxies/middlewares.py", line 83, in from_crawler
+    with codecs.open(proxy_path, 'r', encoding='utf8') as f:
+  File "/usr/lib/python3.10/codecs.py", line 906, in open
+    file = builtins.open(filename, mode, buffering)
+FileNotFoundError: [Errno 2] No such file or directory: '/app/proxy_list.txt'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/twisted/internet/defer.py", line 2000, in _inlineCallbacks
+    result = context.run(gen.send, result)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/crawler.py", line 156, in crawl
+    self.engine = self._create_engine()
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/crawler.py", line 169, in _create_engine
+    return ExecutionEngine(self, lambda _: self.stop())
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/core/engine.py", line 113, in __init__
+    self.close()
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/core/engine.py", line 173, in close
+    self.downloader.close()
+AttributeError: 'ExecutionEngine' object has no attribute 'downloader'
+
+2025-06-14 20:14:05,141 - web.app - ERROR - Error running spider tass: 2025-06-14 20:14:03 [scrapy.utils.log] INFO: Scrapy 2.13.1 started (bot: news_parser)
+2025-06-14 20:14:03 [scrapy.utils.log] INFO: Versions:
+{'lxml': '5.1.0',
+ 'libxml2': '2.12.3',
+ 'cssselect': '1.2.0',
+ 'parsel': '1.10.0',
+ 'w3lib': '2.1.2',
+ 'Twisted': '23.10.0',
+ 'Python': '3.10.12 (main, Feb  4 2025, 14:57:36) [GCC 11.4.0]',
+ 'pyOpenSSL': '24.0.0 (OpenSSL 3.2.1 30 Jan 2024)',
+ 'cryptography': '42.0.2',
+ 'Platform': 'Linux-6.8.0-62-generic-x86_64-with-glibc2.35'}
+2025-06-14 20:14:03 [root] INFO: Initializing TASS spider for date: 2025-06-14
+2025-06-14 20:14:03 [root] INFO: Current processed URLs count: 0
+2025-06-14 20:14:03 [scrapy.addons] INFO: Enabled addons:
+[]
+2025-06-14 20:14:03 [py.warnings] WARNING: /home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/utils/request.py:120: ScrapyDeprecationWarning: 'REQUEST_FINGERPRINTER_IMPLEMENTATION' is a deprecated setting.
+It will be removed in a future version of Scrapy.
+  return cls(crawler)
+
+2025-06-14 20:14:03 [scrapy.middleware] INFO: Enabled extensions:
+['scrapy.extensions.corestats.CoreStats',
+ 'scrapy.extensions.memusage.MemoryUsage',
+ 'scrapy.extensions.logstats.LogStats']
+2025-06-14 20:14:03 [scrapy.crawler] INFO: Overridden settings:
+{'BOT_NAME': 'news_parser',
+ 'DOWNLOAD_DELAY': 3,
+ 'FEED_EXPORT_ENCODING': 'utf-8',
+ 'LOG_LEVEL': 'INFO',
+ 'NEWSPIDER_MODULE': 'news_parser.spiders',
+ 'REQUEST_FINGERPRINTER_IMPLEMENTATION': '2.7',
+ 'RETRY_TIMES': 3,
+ 'ROBOTSTXT_OBEY': True,
+ 'SPIDER_MODULES': ['news_parser.spiders'],
+ 'USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+               '(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+2025-06-14 20:14:03 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Android
+2025-06-14 20:14:03 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:03 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:03 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:03 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Sony BDV13, Brand: Sony, Model: BDV13
+2025-06-14 20:14:03 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Nintendo DSi, Brand: Nintendo, Model: DSi
+2025-06-14 20:14:03 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:03 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Other
+2025-06-14 20:14:03 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: LYF F90M, Brand: LYF, Model: F90M
+2025-06-14 20:14:03 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Sony BDV14, Brand: Sony, Model: BDV14
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: LG Web0S SmartTV, Brand: LG, Model: Web0S SmartTV
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Sony BDV11, Brand: Sony, Model: BDV11
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Nintendo DSi, Brand: Nintendo, Model: DSi
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: LYF LF-2403N, Brand: LYF, Model: LF-2403N
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: LYF F90M, Brand: LYF, Model: F90M
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Applebot
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Applebot
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Other
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Other
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: PhantomJS
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: SMTBot
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: PhantomJS
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: PhantomJS
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: WebKit Nightly
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: PhantomJS
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: PhantomJS
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: PhantomJS
+2025-06-14 20:14:04 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Robot
+2025-06-14 20:14:05 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedDeviceType] Family: Other, Brand: None, Model: None
+2025-06-14 20:14:05 [scrapy_user_agents.user_agent_picker] WARNING: [UnsupportedBrowserType] Family: Zune
+Unhandled error in Deferred:
+2025-06-14 20:14:05 [twisted] CRITICAL: Unhandled error in Deferred:
+
+Traceback (most recent call last):
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/crawler.py", line 339, in crawl
+    return self._crawl(crawler, *args, **kwargs)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/crawler.py", line 343, in _crawl
+    d = crawler.crawl(*args, **kwargs)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/twisted/internet/defer.py", line 2256, in unwindGenerator
+    return _cancellableInlineCallbacks(gen)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/twisted/internet/defer.py", line 2168, in _cancellableInlineCallbacks
+    _inlineCallbacks(None, gen, status, _copy_context())
+--- <exception caught here> ---
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/twisted/internet/defer.py", line 2000, in _inlineCallbacks
+    result = context.run(gen.send, result)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/crawler.py", line 156, in crawl
+    self.engine = self._create_engine()
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/crawler.py", line 169, in _create_engine
+    return ExecutionEngine(self, lambda _: self.stop())
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/core/engine.py", line 113, in __init__
+    self.close()
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/core/engine.py", line 173, in close
+    self.downloader.close()
+builtins.AttributeError: 'ExecutionEngine' object has no attribute 'downloader'
+
+2025-06-14 20:14:05 [twisted] CRITICAL: 
+Traceback (most recent call last):
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/core/engine.py", line 110, in __init__
+    self.downloader: Downloader = downloader_cls(crawler)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/core/downloader/__init__.py", line 109, in __init__
+    DownloaderMiddlewareManager.from_crawler(crawler)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/middleware.py", line 77, in from_crawler
+    return cls._from_settings(crawler.settings, crawler)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/middleware.py", line 88, in _from_settings
+    mw = build_from_crawler(mwcls, crawler)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/utils/misc.py", line 187, in build_from_crawler
+    instance = objcls.from_crawler(crawler, *args, **kwargs)  # type: ignore[attr-defined]
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/rotating_proxies/middlewares.py", line 83, in from_crawler
+    with codecs.open(proxy_path, 'r', encoding='utf8') as f:
+  File "/usr/lib/python3.10/codecs.py", line 906, in open
+    file = builtins.open(filename, mode, buffering)
+FileNotFoundError: [Errno 2] No such file or directory: '/app/proxy_list.txt'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/twisted/internet/defer.py", line 2000, in _inlineCallbacks
+    result = context.run(gen.send, result)
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/crawler.py", line 156, in crawl
+    self.engine = self._create_engine()
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/crawler.py", line 169, in _create_engine
+    return ExecutionEngine(self, lambda _: self.stop())
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/core/engine.py", line 113, in __init__
+    self.close()
+  File "/home/logic/Other/Scrapy/venv/lib/python3.10/site-packages/scrapy/core/engine.py", line 173, in close
+    self.downloader.close()
+AttributeError: 'ExecutionEngine' object has no attribute 'downloader'
+
