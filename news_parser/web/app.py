@@ -3,7 +3,7 @@ import json
 import subprocess
 import logging
 from datetime import datetime
-from flask import Flask, jsonify, request, render_template, redirect, url_for
+from flask import Flask, jsonify, request, render_template, redirect, url_for, g
 from flask_cors import CORS
 from sqlalchemy import desc, create_engine, text
 import sys
@@ -37,16 +37,16 @@ CORS(app)
 
 # Initialize database connection
 try:
-    db_url = os.getenv('DATABASE_URL', 'postgresql://news_user:your_password@localhost:5432/news_db')
+    db_url = os.getenv('DATABASE_URL', 'postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres')
     db = init_db(db_url)
     print("Successfully connected to the database!")
 except Exception as e:
     print("Error connecting to the database:")
-    print(f"Please make sure PostgreSQL is running and the database 'news_db' exists.")
+    print(f"Please make sure PostgreSQL is running and the database 'postgres' exists.")
     print(f"Current database URL: {db_url}")
     print(f"Error details: {str(e)}")
     print("\nTo fix this:")
-    print("1. Create the database: CREATE DATABASE news_db;")
+    print("1. Create the database: CREATE DATABASE postgres;")
     print("2. Set the correct DATABASE_URL in .env file or environment variable")
     print("3. Make sure PostgreSQL is running: sudo service postgresql status")
     raise
@@ -77,21 +77,20 @@ def get_spider_names_by_sites(sites):
     return [reverse_map[site] for site in sites if site in reverse_map]
 
 # Get project paths from environment variables
-SCRAPY_PROJECT_PATH = os.getenv('SCRAPY_PROJECT_PATH', os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'news_parser')))
+SCRAPY_PROJECT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 PYTHON_PATH = os.getenv('PYTHON_PATH', 'python')
 
 def get_spider_status():
     """Get status of all spiders from database"""
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT name, enabled, status, last_update FROM spider_status"))
+            result = conn.execute(text("SELECT name, status, last_update FROM spider_status"))
             spiders = []
             for row in result:
                 spider = {
                     'name': row[0],
-                    'enabled': row[1],
-                    'status': row[2],
-                    'last_update': row[3].isoformat() if row[3] else None
+                    'status': row[1],
+                    'last_update': row[2].isoformat() if row[2] else None
                 }
                 spiders.append(spider)
             return spiders
@@ -99,22 +98,30 @@ def get_spider_status():
         logger.error(f"Database error: {str(e)}")
         return []
 
-def update_spider_status(spiders, enabled):
-    """Update enabled status for specified spiders"""
+def update_spider_status(spiders, status):
+    """Update status for specified spiders"""
     try:
         with engine.connect() as conn:
             if not spiders:  # Update all spiders
-                conn.execute(text("UPDATE spider_status SET enabled = :enabled"), {"enabled": enabled})
+                conn.execute(text("UPDATE spider_status SET status = :status"), {"status": status})
             else:  # Update specific spiders
                 conn.execute(
-                    text("UPDATE spider_status SET enabled = :enabled WHERE name = ANY(:spiders)"),
-                    {"enabled": enabled, "spiders": spiders}
+                    text("UPDATE spider_status SET status = :status WHERE name = ANY(:spiders)"),
+                    {"status": status, "spiders": spiders}
                 )
             conn.commit()
         return True
     except Exception as e:
         logger.error(f"Database error: {str(e)}")
         return False
+
+def set_spider_status(name, status):
+    with engine.connect() as conn:
+        conn.execute(text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'), {
+            'status': status,
+            'last_update': datetime.utcnow(),
+            'name': name
+        })
 
 def run_spider(spider_name):
     """Run a specific spider"""
@@ -143,13 +150,12 @@ def run_spider(spider_name):
 @app.route('/api/spiders', methods=['GET'])
 def get_spiders():
     with engine.connect() as conn:
-        result = conn.execute(text('SELECT name, enabled, status, last_update FROM spider_status ORDER BY name'))
+        result = conn.execute(text('SELECT name, status, last_update FROM spider_status ORDER BY name'))
         spiders = [
             {
                 'name': row[0],
-                'enabled': row[1],
-                'status': row[2],
-                'last_update': row[3].isoformat() if row[3] else None
+                'status': row[1],
+                'last_update': row[2].isoformat() if row[2] else None
             }
             for row in result
         ]
@@ -157,14 +163,12 @@ def get_spiders():
 
 @app.route('/api/spiders/<name>/start', methods=['POST'])
 def start_spider(name):
-    with engine.connect() as conn:
-        conn.execute(text('UPDATE spider_status SET enabled=TRUE, status=\'ok\' WHERE name=:name'), {'name': name})
-    return jsonify({'message': f'Spider {name} started.'})
+    set_spider_status(name, 'scheduled')
+    return jsonify({'message': f'Spider {name} scheduled.'})
 
 @app.route('/api/spiders/<name>/stop', methods=['POST'])
 def stop_spider(name):
-    with engine.connect() as conn:
-        conn.execute(text('UPDATE spider_status SET enabled=FALSE, status=\'disabled\' WHERE name=:name'), {'name': name})
+    set_spider_status(name, 'disabled')
     return jsonify({'message': f'Spider {name} stopped.'})
 
 @app.route('/api/spiders/<name>/status', methods=['POST'])
@@ -172,45 +176,21 @@ def update_spider_status_api(name):
     data = request.get_json()
     status = data.get('status')
     last_update = data.get('last_update')
-    with engine.connect() as conn:
-        conn.execute(text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'), {
-            'status': status,
-            'last_update': last_update,
-            'name': name
-        })
+    set_spider_status(name, status)
     return jsonify({'message': f'Status for {name} updated.'})
 
 @app.route('/api/spiders/<name>/run', methods=['POST'])
 def run_spider_api(name):
     try:
-        result = subprocess.run([
+        set_spider_status(name, 'running')
+        subprocess.Popen([
             PYTHON_PATH, '-m', 'scrapy', 'crawl', name
-        ], cwd=SCRAPY_PROJECT_PATH, capture_output=True, text=True, timeout=600)
-        if result.returncode == 0:
-            # Update status and last_update
-            with engine.connect() as conn:
-                conn.execute(text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'), {
-                    'status': 'ok',
-                    'last_update': datetime.utcnow(),
-                    'name': name
-                })
-            return jsonify({'message': f'Spider {name} ran successfully.', 'output': result.stdout})
-        else:
-            with engine.connect() as conn:
-                conn.execute(text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'), {
-                    'status': 'error',
-                    'last_update': datetime.utcnow(),
-                    'name': name
-                })
-            return jsonify({'message': f'Spider {name} failed.', 'error': result.stderr}), 500
+        ], cwd=SCRAPY_PROJECT_PATH)
+        return jsonify({'success': True, 'message': f'{name} spider running successful'})
     except Exception as e:
-        with engine.connect() as conn:
-            conn.execute(text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'), {
-                'status': 'error',
-                'last_update': datetime.utcnow(),
-                'name': name
-            })
-        return jsonify({'message': f'Error running spider {name}: {str(e)}'}), 500
+        logger.error(f"Error running spider {name}: {str(e)}", exc_info=True)
+        set_spider_status(name, 'error')
+        return jsonify({'success': False, 'message': f'Error running spider {name}: {str(e)}'}), 500
 
 @app.route('/api/articles', methods=['GET'])
 def get_articles():
@@ -285,9 +265,12 @@ def get_stats():
     })
 
 def get_status_color(status):
-    """Get color based on status"""
-    if status == 'ok':
+    if status == 'running':
         return 'green'
+    elif status == 'scheduled':
+        return 'blue'
+    elif status == 'disabled':
+        return 'grey'
     elif status == 'error':
         return 'red'
     else:
@@ -322,13 +305,12 @@ def index():
 @app.route('/dashboard', methods=['GET'])
 def dashboard():
     with engine.connect() as conn:
-        result = conn.execute(text('SELECT name, enabled, status, last_update FROM spider_status ORDER BY name'))
+        result = conn.execute(text('SELECT name, status, last_update FROM spider_status ORDER BY name'))
         spiders = [
             {
                 'name': row[0],
-                'enabled': row[1],
-                'status': row[2],
-                'last_update': row[3].strftime('%d/%m/%Y %H:%M') if row[3] else None
+                'status': row[1],
+                'last_update': row[2].strftime('%d/%m/%Y %H:%M') if row[2] else None
             }
             for row in result
         ]
@@ -338,110 +320,96 @@ def dashboard():
 def dashboard_run_spider(name):
     # Trigger the spider run (sync call)
     try:
-        result = subprocess.run([
+        set_spider_status(name, 'running')
+        subprocess.Popen([
             PYTHON_PATH, '-m', 'scrapy', 'crawl', name
-        ], cwd=SCRAPY_PROJECT_PATH, capture_output=True, text=True, timeout=600)
-        now = datetime.utcnow()
-        with engine.connect() as conn:
-            if result.returncode == 0:
-                conn.execute(text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'), {
-                    'status': 'ok', 'last_update': now, 'name': name
-                })
-            else:
-                conn.execute(text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'), {
-                    'status': 'error', 'last_update': now, 'name': name
-                })
+        ], cwd=SCRAPY_PROJECT_PATH)
+        return redirect(url_for('dashboard'))
     except Exception as e:
-        with engine.connect() as conn:
-            conn.execute(text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'), {
-                'status': 'error', 'last_update': datetime.utcnow(), 'name': name
-            })
-    return redirect(url_for('dashboard'))
+        set_spider_status(name, 'error')
+        return redirect(url_for('dashboard'))
 
 @app.route('/dashboard/stop/<name>', methods=['POST'])
 def dashboard_stop_spider(name):
-    with engine.connect() as conn:
-        conn.execute(text('UPDATE spider_status SET enabled=FALSE, status=\'disabled\' WHERE name=:name'), {'name': name})
+    set_spider_status(name, 'disabled')
     return redirect(url_for('dashboard'))
 
 @app.route('/dashboard/run_all', methods=['POST'])
 def dashboard_run_all():
     with engine.connect() as conn:
-        result = conn.execute(text('SELECT name FROM spider_status WHERE enabled=TRUE'))
+        result = conn.execute(text('SELECT name FROM spider_status WHERE status=\'scheduled\''))
         names = [row[0] for row in result]
     for name in names:
         try:
-            result = subprocess.run([
+            set_spider_status(name, 'running')
+            subprocess.Popen([
                 PYTHON_PATH, '-m', 'scrapy', 'crawl', name
-            ], cwd=SCRAPY_PROJECT_PATH, capture_output=True, text=True, timeout=600)
-            now = datetime.utcnow()
-            with engine.connect() as conn:
-                if result.returncode == 0:
-                    conn.execute(text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'), {
-                        'status': 'ok', 'last_update': now, 'name': name
-                    })
-                else:
-                    conn.execute(text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'), {
-                        'status': 'error', 'last_update': now, 'name': name
-                    })
+            ], cwd=SCRAPY_PROJECT_PATH)
         except Exception as e:
-            with engine.connect() as conn:
-                conn.execute(text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'), {
-                    'status': 'error', 'last_update': datetime.utcnow(), 'name': name
-                })
+            set_spider_status(name, 'error')
     return redirect(url_for('dashboard'))
 
 @app.route('/dashboard/stop_all', methods=['POST'])
 def dashboard_stop_all():
-    with engine.connect() as conn:
-        conn.execute(text('UPDATE spider_status SET enabled=FALSE, status=\'disabled\''))
+    set_spider_status(None, 'disabled')
     return redirect(url_for('dashboard'))
 
 @app.route('/api/scraper/status', methods=['GET'])
 def get_status():
     """Get status of all spiders"""
     spiders = get_spider_status()
+    # Sort spiders by name
+    spiders.sort(key=lambda x: x['name'])
     return jsonify({"success": True, "spiders": spiders})
 
 @app.route('/api/scraper/start', methods=['POST'])
 def start_spiders():
-    """Enable specified spiders"""
     data = request.get_json() or {}
     spiders = data.get('spiders', [])
-    
-    if update_spider_status(spiders, True):
-        return jsonify({"success": True, "message": "Spiders enabled successfully"})
-    return jsonify({"success": False, "message": "Failed to enable spiders"}), 500
+    if update_spider_status(spiders, 'scheduled'):
+        return jsonify({"success": True, "message": "Spiders scheduled successfully"})
+    return jsonify({"success": False, "message": "Failed to schedule spiders"}), 500
 
 @app.route('/api/scraper/stop', methods=['POST'])
 def stop_spiders():
-    """Disable specified spiders"""
     data = request.get_json() or {}
     spiders = data.get('spiders', [])
-    
-    if update_spider_status(spiders, False):
+    if update_spider_status(spiders, 'disabled'):
         return jsonify({"success": True, "message": "Spiders disabled successfully"})
     return jsonify({"success": False, "message": "Failed to disable spiders"}), 500
 
 @app.route('/api/scraper/immediate', methods=['POST'])
 def run_spiders_immediate():
-    """Run specified spiders immediately"""
     data = request.get_json() or {}
     spiders = data.get('spiders', [])
-    
-    if not spiders:  # Run all enabled spiders
-        spiders = [spider['name'] for spider in get_spider_status() if spider['enabled']]
-    
-    success = all(run_spider(spider) for spider in spiders)
-    
-    if success:
-        return jsonify({"success": True, "message": "Spiders started successfully"})
-    return jsonify({"success": False, "message": "Failed to start some spiders"}), 500
+    if not spiders:
+        spiders = [spider['name'] for spider in get_spider_status()]
+    try:
+        for name in spiders:
+            set_spider_status(name, 'running')
+            subprocess.Popen([
+                PYTHON_PATH, '-m', 'scrapy', 'crawl', name
+            ], cwd=SCRAPY_PROJECT_PATH)
+        return jsonify({'success': True, 'message': 'All selected spiders running successfully'})
+    except Exception as e:
+        logger.error(f"Error running spiders: {str(e)}", exc_info=True)
+        for name in spiders:
+            set_spider_status(name, 'error')
+        return jsonify({'success': False, 'message': f'Error running spiders: {str(e)}'}), 500
 
 @app.route('/health')
 def health_check():
     """Health check endpoint"""
     return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
+
+@app.before_request
+def log_request_info():
+    logger.info(f"Incoming request: {request.method} {request.path} - args: {dict(request.args)} - json: {request.get_json(silent=True)}")
+
+@app.after_request
+def log_response_info(response):
+    logger.info(f"Outgoing response: {request.method} {request.path} - status: {response.status_code}")
+    return response
 
 if __name__ == '__main__':
     # Start the Flask app

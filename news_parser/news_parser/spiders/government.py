@@ -5,10 +5,10 @@ from bs4 import BeautifulSoup
 import uuid
 import logging
 
-class GazetaSpider(scrapy.Spider):
-    name = 'gazeta'
-    allowed_domains = ['gazeta.ru']
-    start_urls = ['https://www.gazeta.ru/news/']
+class GovernmentSpider(scrapy.Spider):
+    name = 'government'
+    allowed_domains = ['government.ru']
+    start_urls = ['http://government.ru/news/']
     
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
@@ -28,9 +28,9 @@ class GazetaSpider(scrapy.Spider):
     def parse(self, response):
         logging.info(f"Parsing main page: {response.url}")
         # Save the first page HTML to a file
-        with open('gazeta_first_page.html', 'w', encoding='utf-8') as f:
+        with open('government_first_page.html', 'w', encoding='utf-8') as f:
             f.write(response.text)
-        logging.info("Saved HTML to gazeta_first_page.html")
+        logging.info("Saved HTML to government_first_page.html")
         
         # Find all news items
         news_items = response.css('div.news-item')
@@ -87,7 +87,7 @@ class GazetaSpider(scrapy.Spider):
         article['id'] = str(uuid.uuid4())
         article['text'] = article_text
         article['metadata'] = {
-            'source': 'gazeta',
+            'source': 'government',
             'published_at': int(datetime.now().timestamp()),
             'published_at_iso': datetime.now().isoformat(),
             'url': url,

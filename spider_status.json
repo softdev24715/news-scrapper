@@ -1,0 +1,74 @@
+[
+  {
+    "name": "tass",
+    "enabled": "t",
+    "status": "ok",
+    "last_update": "14/6/2025 20:29:13.602915"
+  },
+  {
+    "name": "rbc",
+    "enabled": "t",
+    "status": "ok",
+    "last_update": null
+  },
+  {
+    "name": "vedomosti",
+    "enabled": "t",
+    "status": "ok",
+    "last_update": null
+  },
+  {
+    "name": "pnp",
+    "enabled": "t",
+    "status": "ok",
+    "last_update": null
+  },
+  {
+    "name": "lenta",
+    "enabled": "t",
+    "status": "ok",
+    "last_update": null
+  },
+  {
+    "name": "graininfo",
+    "enabled": "t",
+    "status": "ok",
+    "last_update": null
+  },
+  {
+    "name": "forbes",
+    "enabled": "t",
+    "status": "ok",
+    "last_update": null
+  },
+  {
+    "name": "interfax",
+    "enabled": "t",
+    "status": "ok",
+    "last_update": null
+  },
+  {
+    "name": "izvestia",
+    "enabled": "t",
+    "status": "ok",
+    "last_update": null
+  },
+  {
+    "name": "gazeta",
+    "enabled": "t",
+    "status": "ok",
+    "last_update": null
+  },
+  {
+    "name": "rg",
+    "enabled": "t",
+    "status": "ok",
+    "last_update": null
+  },
+  {
+    "name": "kommersant",
+    "enabled": "t",
+    "status": "ok",
+    "last_update": null
+  }
+]

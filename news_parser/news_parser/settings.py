@@ -17,7 +17,7 @@ NEWSPIDER_MODULE = "news_parser.spiders"
 ADDONS = {}
 
 # Database settings
-DATABASE_URL = "postgresql://news_user:your_password@localhost:5432/news_db"
+DATABASE_URL="postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -49,13 +49,20 @@ DOWNLOAD_DELAY = 3
 #    "news_parser.middlewares.NewsParserSpiderMiddleware": 543,
 #}
 
-# Enable or disable downloader middlewares
+# Disable rotating proxy
+ROTATING_PROXY_LIST = []
+ROTATING_PROXY_PAGE_RETRY_TIMES = 0
+
+# Disable proxy middleware
 DOWNLOADER_MIDDLEWARES = {
-    "news_parser.middlewares.NewsParserDownloaderMiddleware": 543,
-    "news_parser.middlewares.RotateUserAgentMiddleware": 544,
-    'rotating_proxies.middlewares.RotatingProxyMiddleware': 610,
-    'rotating_proxies.middlewares.BanDetectionMiddleware': 620,
-    'scrapy_user_agents.middlewares.RandomUserAgentMiddleware': 400,
+    'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
+    'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 110,
+    'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
+    'scrapy_user_agents.middlewares.RandomUserAgentMiddleware': None,
+    'news_parser.middlewares.NewsParserDownloaderMiddleware': 543,
+    'news_parser.middlewares.RotateUserAgentMiddleware': None,
+    'rotating_proxies.middlewares.RotatingProxyMiddleware': None,
+    'rotating_proxies.middlewares.BanDetectionMiddleware': None,
 }
 
 # Enable or disable extensions
@@ -68,8 +75,8 @@ EXTENSIONS = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    "news_parser.pipelines.NewsParserPipeline": 300,
-    "news_parser.pipelines.PostgreSQLPipeline": 400,
+#    "news_parser.pipelines.NewsParserPipeline": 300,
+   "news_parser.pipelines.PostgreSQLPipeline": 400,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -106,7 +113,7 @@ RETRY_TIMES = 3
 RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 408, 429]
 
 # Logging settings
-LOG_LEVEL = 'INFO'
+LOG_LEVEL = 'DEBUG'
 
 # Feed export settings
 FEED_FORMAT = 'json'
@@ -123,13 +130,14 @@ FEEDS = {
 }
 
 # Proxy settings
-PROXY_LIST = os.getenv('PROXY_LIST', '').split(',')  # Split comma-separated list into array
-if PROXY_LIST and PROXY_LIST[0]:  # If we have proxies
-    ROTATING_PROXY_LIST = PROXY_LIST
-    DOWNLOADER_MIDDLEWARES.update({
-        'rotating_proxies.middlewares.RotatingProxyMiddleware': 610,
-        'rotating_proxies.middlewares.BanDetectionMiddleware': 620,
-    })
+PROXY_URL = 'http://googlecompute:xd23rXPEmq2+23@90.156.202.84:3128'
+
+# Set proxy environment variables
+os.environ['HTTP_PROXY'] = PROXY_URL
+os.environ['HTTPS_PROXY'] = PROXY_URL
+
+# Enable debug logging
+LOG_LEVEL = 'DEBUG'
 
 # Optional: Tune ban detection and retry
 ROTATING_PROXY_PAGE_RETRY_TIMES = 5

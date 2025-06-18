@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>News Scraper Dashboard</title>
+    <title>News and Legislation Sites Scraping Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .status-ok { color: green; }
         .status-error { color: red; }
         .status-disabled { color: gray; }
+        .status-running { color: green; }
+        .status-scheduled { color: blue; }
         .btn-loading {
             position: relative;
             color: transparent !important;
@@ -40,7 +42,7 @@
 </head>
 <body>
     <div class="container mt-4">
-        <h1>News Scraper Dashboard</h1>
+        <h1>News and Legislation Sites Scraping Dashboard</h1>
         
         <div class="row mb-4">
             <div class="col">
@@ -54,7 +56,8 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Spider Name</th>
+                        <th>No</th>
+                        <th>Site Url</th>
                         <th>Status</th>
                         <th>Last Update</th>
                         <th>Actions</th>
@@ -70,6 +73,26 @@
     <script>
         let runningSpiders = new Set();
 
+        // Mapping from spider name to site URL
+        const spiderSiteMap = {
+            'tass': 'https://tass.ru/',
+            'rbc': 'https://rbc.ru/',
+            'kommersant': 'https://kommersant.ru/',
+            'lenta': 'https://lenta.ru/',
+            'gazeta': 'https://gazeta.ru/',
+            'graininfo': 'https://graininfo.ru/',
+            'vedomosti': 'https://vedomosti.ru/',
+            'izvestia': 'https://iz.ru/',
+            'interfax': 'https://interfax.ru/',
+            'forbes': 'https://forbes.ru/',
+            'rg': 'https://rg.ru/',
+            'pnp': 'https://pnp.ru/',
+            'ria': 'https://ria.ru/',
+            'kremlin': 'https://kremlin.ru/',
+            'meduza': 'https://meduza.io/',
+            'government': 'https://government.ru/news/',
+        };
+
         // Fetch and display spider status
         function updateSpiderStatus() {
             fetch('/api/scraper/status')
@@ -78,18 +101,43 @@
                     const table = document.getElementById('spiderTable');
                     table.innerHTML = '';
                     
-                    data.spiders.forEach(spider => {
+                    data.spiders.forEach((spider, idx) => {
                         const row = document.createElement('tr');
-                        const isRunning = runningSpiders.has(spider.name);
+                        const isRunning = (spider.status === 'running');
+                        const isScheduled = (spider.status === 'scheduled');
+                        const isDisabled = (spider.status === 'disabled');
+                        const isError = (spider.status === 'error');
+
+                        // Map backend status to user-friendly label
+                        let statusLabel = '';
+                        let statusClass = '';
+                        if (isRunning) {
+                            statusLabel = 'Running';
+                            statusClass = 'status-running';
+                        } else if (isScheduled) {
+                            statusLabel = 'Scheduled';
+                            statusClass = 'status-scheduled';
+                        } else if (isDisabled) {
+                            statusLabel = 'Disabled';
+                            statusClass = 'status-disabled';
+                        } else if (isError) {
+                            statusLabel = 'Error';
+                            statusClass = 'status-error';
+                        } else {
+                            statusLabel = spider.status;
+                            statusClass = '';
+                        }
+
                         row.innerHTML = `
-                            <td>${spider.name}</td>
-                            <td class="status-${spider.status}">${spider.status}</td>
-                            <td>${new Date(spider.last_update).toLocaleString()}</td>
+                            <td>${idx + 1}</td>
+                            <td><a href="${spiderSiteMap[spider.name] || '#'}" target="_blank">${spiderSiteMap[spider.name] || spider.name}</a></td>
+                            <td class="${statusClass}">${statusLabel}</td>
+                            <td>${spider.last_update ? new Date(spider.last_update).toLocaleString() : ''}</td>
                             <td>
                                 <button class="btn btn-sm btn-success" onclick="startSpider('${spider.name}')" 
-                                    ${spider.enabled ? 'disabled' : ''}>Start</button>
+                                    ${(isScheduled || isRunning) ? 'disabled' : ''}>Start</button>
                                 <button class="btn btn-sm btn-danger" onclick="stopSpider('${spider.name}')" 
-                                    ${!spider.enabled ? 'disabled' : ''}>Stop</button>
+                                    ${(isDisabled) ? 'disabled' : ''}>Stop</button>
                                 <button class="btn btn-sm btn-primary" onclick="runSpider('${spider.name}')" 
                                     id="run-${spider.name}" ${isRunning ? 'disabled' : ''}>Run</button>
                             </td>
@@ -225,7 +273,7 @@
 
         // Update status every 5 seconds
         updateSpiderStatus();
-        setInterval(updateSpiderStatus, 5000);
+        setInterval(updateSpiderStatus, 30000);
     </script>
 </body>
 </html> 

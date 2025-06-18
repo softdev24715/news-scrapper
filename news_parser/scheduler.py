@@ -11,16 +11,16 @@ import logging
 load_dotenv()
 
 # Database configuration
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/news_db')
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres')
 SCRAPY_PROJECT_PATH = os.getenv('SCRAPY_PROJECT_PATH', os.path.abspath(os.path.join(os.path.dirname(__file__), 'news_parser')))
 PYTHON_PATH = os.getenv('PYTHON_PATH', 'python')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
-def get_enabled_spiders():
+def get_scheduled_spiders():
     engine = create_engine(DATABASE_URL)
     with engine.connect() as conn:
-        result = conn.execute(text('SELECT name FROM spider_status WHERE enabled = TRUE'))
+        result = conn.execute(text("SELECT name FROM spider_status WHERE status = 'scheduled'"))
         spiders = [row[0] for row in result]
     return spiders
 
@@ -34,12 +34,13 @@ def update_spider_status(name, status, last_update=None):
 
 def run_spider(spider_name):
     logging.info(f"Running spider: {spider_name}")
+    update_spider_status(spider_name, 'running', datetime.utcnow())
     result = subprocess.run([
         PYTHON_PATH, '-m', 'scrapy', 'crawl', spider_name
     ], cwd=SCRAPY_PROJECT_PATH)
     now = datetime.utcnow()
     if result.returncode == 0:
-        update_spider_status(spider_name, 'ok', now)
+        update_spider_status(spider_name, 'scheduled', now)
         logging.info(f"Spider {spider_name} finished successfully.")
     else:
         update_spider_status(spider_name, 'error', now)
@@ -47,8 +48,8 @@ def run_spider(spider_name):
 
 if __name__ == "__main__":
     scheduler = BlockingScheduler()
-    enabled_spiders = get_enabled_spiders()
-    for spider in enabled_spiders:
+    scheduled_spiders = get_scheduled_spiders()
+    for spider in scheduled_spiders:
         scheduler.add_job(run_spider, 'interval', args=[spider], hours=24, next_run_time=None)
-    logging.info(f"Scheduler started. Enabled spiders: {enabled_spiders}")
+    logging.info(f"Scheduler started. Scheduled spiders: {scheduled_spiders}")
     scheduler.start() 
