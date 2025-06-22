@@ -12,7 +12,7 @@
  Target Server Version : 140018 (140018)
  File Encoding         : 65001
 
- Date: 14/06/2025 22:26:03
+ Date: 22/06/2025 21:50:00
 */
 
 
@@ -22,8 +22,7 @@
 DROP TABLE IF EXISTS "public"."spider_status";
 CREATE TABLE "public"."spider_status" (
   "name" varchar COLLATE "pg_catalog"."default" NOT NULL,
-  "enabled" bool NOT NULL DEFAULT true,
-  "status" varchar COLLATE "pg_catalog"."default" DEFAULT 'ok'::character varying,
+  "status" varchar COLLATE "pg_catalog"."default" DEFAULT 'enabled'::character varying,
   "last_update" timestamp(6)
 )
 ;
@@ -33,18 +32,31 @@ ALTER TABLE "public"."spider_status" OWNER TO "postgres";
 -- Records of spider_status
 -- ----------------------------
 BEGIN;
-INSERT INTO "public"."spider_status" ("name", "enabled", "status", "last_update") VALUES ('tass', 't', 'ok', '2025-06-14 20:29:13.602915');
-INSERT INTO "public"."spider_status" ("name", "enabled", "status", "last_update") VALUES ('rbc', 't', 'ok', NULL);
-INSERT INTO "public"."spider_status" ("name", "enabled", "status", "last_update") VALUES ('vedomosti', 't', 'ok', NULL);
-INSERT INTO "public"."spider_status" ("name", "enabled", "status", "last_update") VALUES ('pnp', 't', 'ok', NULL);
-INSERT INTO "public"."spider_status" ("name", "enabled", "status", "last_update") VALUES ('lenta', 't', 'ok', NULL);
-INSERT INTO "public"."spider_status" ("name", "enabled", "status", "last_update") VALUES ('graininfo', 't', 'ok', NULL);
-INSERT INTO "public"."spider_status" ("name", "enabled", "status", "last_update") VALUES ('forbes', 't', 'ok', NULL);
-INSERT INTO "public"."spider_status" ("name", "enabled", "status", "last_update") VALUES ('interfax', 't', 'ok', NULL);
-INSERT INTO "public"."spider_status" ("name", "enabled", "status", "last_update") VALUES ('izvestia', 't', 'ok', NULL);
-INSERT INTO "public"."spider_status" ("name", "enabled", "status", "last_update") VALUES ('gazeta', 't', 'ok', NULL);
-INSERT INTO "public"."spider_status" ("name", "enabled", "status", "last_update") VALUES ('rg', 't', 'ok', NULL);
-INSERT INTO "public"."spider_status" ("name", "enabled", "status", "last_update") VALUES ('kommersant', 't', 'ok', NULL);
+-- News spiders (13 spiders)
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('tass', 'enabled', '2025-06-14 20:29:13.602915');
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('rbc', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('vedomosti', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('pnp', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('lenta', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('graininfo', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('forbes', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('interfax', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('izvestia', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('gazeta', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('rg', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('kommersant', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('ria', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('meduza', 'enabled', NULL);
+
+-- Government and official spiders (4 spiders)
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('government', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('kremlin', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('regulation', 'enabled', NULL);
+
+-- Legal document spiders (3 spiders)
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('pravo', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('sozd', 'enabled', NULL);
+INSERT INTO "public"."spider_status" ("name", "status", "last_update") VALUES ('eaeu', 'enabled', NULL);
 COMMIT;
 
 -- ----------------------------

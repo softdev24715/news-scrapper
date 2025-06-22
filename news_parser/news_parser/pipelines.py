@@ -10,7 +10,7 @@ import json
 from datetime import datetime
 import os
 import logging
-from .models import Article, init_db
+from .models import Article, LegalDocument, init_db
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import create_engine
 from sqlalchemy.sql import text
@@ -91,31 +91,19 @@ class PostgreSQLPipeline:
             # Convert item to dict
             item_dict = dict(item)
             
-            # Create Article instance
-            article = Article(
-                id=item_dict['id'],
-                text=item_dict['text'],
-                source=item_dict['metadata']['source'],
-                url=item_dict['metadata']['url'],
-                header=item_dict['metadata']['header'],
-                published_at=item_dict['metadata']['published_at'],
-                published_at_iso=datetime.fromisoformat(item_dict['metadata']['published_at_iso'].replace('Z', '+00:00')),
-                parsed_at=item_dict['metadata']['parsed_at'],
-                author=item_dict['metadata'].get('author'),
-                categories=item_dict['metadata'].get('categories'),
-                images=item_dict['metadata'].get('images')
-            )
+            # Check if this is a legal document or news article
+            if 'lawMetadata' in item_dict:
+                # This is a legal document
+                self._save_legal_document(item_dict)
+            else:
+                # This is a news article
+                self._save_news_article(item_dict)
             
-            # Add to session
-            self.session.add(article)
-            self.session.commit()
-            logging.info(f"Saved article {article.id} to database")
-
             # Update spider status
             self.session.execute(
                 text("""
                     UPDATE spider_status 
-                    SET status = 'ok', last_update = NOW() 
+                    SET status = 'running', last_update = NOW() 
                     WHERE name = :name
                 """),
                 {"name": spider.name}
@@ -124,14 +112,127 @@ class PostgreSQLPipeline:
             
         except IntegrityError as e:
             self.session.rollback()
-            logging.warning(f"Duplicate article found: {item_dict['id']}")
+            logging.warning(f"Duplicate item found: {item_dict['id']}")
         except Exception as e:
             self.session.rollback()
-            logging.error(f"Error saving article to database: {str(e)}")
+            logging.error(f"Error saving item to database: {str(e)}")
+        
+        return item
+
+    def _save_news_article(self, item_dict):
+        """Save a news article to the articles table"""
+        article = Article(
+            id=item_dict['id'],
+            text=item_dict['text'],
+            source=item_dict['metadata']['source'],
+            url=item_dict['metadata']['url'],
+            header=item_dict['metadata']['header'],
+            published_at=item_dict['metadata']['published_at'],
+            published_at_iso=datetime.fromisoformat(item_dict['metadata']['published_at_iso'].replace('Z', '+00:00')),
+            parsed_at=item_dict['metadata']['parsed_at'],
+            author=item_dict['metadata'].get('author'),
+            categories=item_dict['metadata'].get('categories'),
+            images=item_dict['metadata'].get('images')
+        )
+        
+        self.session.add(article)
+        self.session.commit()
+        logging.info(f"Saved news article {article.id} to database")
+
+    def _save_legal_document(self, item_dict):
+        """Save a legal document to the legal_documents table"""
+        law_metadata = item_dict['lawMetadata']
+        
+        legal_doc = LegalDocument(
+            id=item_dict['id'],
+            text=item_dict['text'],
+            original_id=law_metadata.get('originalId'),
+            doc_kind=law_metadata.get('docKind'),
+            title=law_metadata.get('title'),
+            source=law_metadata.get('source'),
+            url=law_metadata.get('url'),
+            published_at=law_metadata.get('publishedAt'),
+            parsed_at=law_metadata.get('parsedAt'),
+            jurisdiction=law_metadata.get('jurisdiction'),
+            language=law_metadata.get('language'),
+            stage=law_metadata.get('stage'),
+            discussion_period=law_metadata.get('discussionPeriod'),
+            explanatory_note=law_metadata.get('explanatoryNote'),
+            summary_reports=law_metadata.get('summaryReports'),
+            comment_stats=law_metadata.get('commentStats')
+        )
+        
+        self.session.add(legal_doc)
+        self.session.commit()
+        logging.info(f"Saved legal document {legal_doc.id} to database")
+
+    def close_spider(self, spider):
+        if self.session:
+            self.session.close()
+            logging.info(f"Closed database connection for spider {spider.name}")
+
+class LegalDocumentsPipeline:
+    """Pipeline specifically for legal documents"""
+    def __init__(self, db_url):
+        self.db_url = db_url
+        self.session = None
+        logging.info("Initializing LegalDocumentsPipeline")
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        db_url = crawler.settings.get('DATABASE_URL')
+        if not db_url:
+            raise ValueError("DATABASE_URL setting is required")
+        return cls(db_url)
+
+    def open_spider(self, spider):
+        self.session = init_db(self.db_url)
+        logging.info(f"Connected to database for legal documents spider {spider.name}")
+
+    def process_item(self, item, spider):
+        try:
+            # Convert item to dict
+            item_dict = dict(item)
+            
+            # Only process items with lawMetadata (legal documents)
+            if 'lawMetadata' not in item_dict:
+                return item
+            
+            law_metadata = item_dict['lawMetadata']
+            
+            legal_doc = LegalDocument(
+                id=item_dict['id'],
+                text=item_dict['text'],
+                original_id=law_metadata.get('originalId'),
+                doc_kind=law_metadata.get('docKind'),
+                title=law_metadata.get('title'),
+                source=law_metadata.get('source'),
+                url=law_metadata.get('url'),
+                published_at=law_metadata.get('publishedAt'),
+                parsed_at=law_metadata.get('parsedAt'),
+                jurisdiction=law_metadata.get('jurisdiction'),
+                language=law_metadata.get('language'),
+                stage=law_metadata.get('stage'),
+                discussion_period=law_metadata.get('discussionPeriod'),
+                explanatory_note=law_metadata.get('explanatoryNote'),
+                summary_reports=law_metadata.get('summaryReports'),
+                comment_stats=law_metadata.get('commentStats')
+            )
+            
+            self.session.add(legal_doc)
+            self.session.commit()
+            logging.info(f"Saved legal document {legal_doc.id} to database")
+            
+        except IntegrityError as e:
+            self.session.rollback()
+            logging.warning(f"Duplicate legal document found: {item_dict['id']}")
+        except Exception as e:
+            self.session.rollback()
+            logging.error(f"Error saving legal document to database: {str(e)}")
         
         return item
 
     def close_spider(self, spider):
         if self.session:
             self.session.close()
-            logging.info(f"Closed database connection for spider {spider.name}")
+            logging.info(f"Closed database connection for legal documents spider {spider.name}")

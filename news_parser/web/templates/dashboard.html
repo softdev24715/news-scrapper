@@ -11,6 +11,33 @@
         .status-disabled { color: gray; }
         .status-running { color: green; }
         .status-scheduled { color: blue; }
+        
+        /* Disabled button styles */
+        .btn:disabled {
+            background-color: #6c757d !important;
+            border-color: #6c757d !important;
+            color: #ffffff !important;
+            opacity: 1 !important;
+        }
+        
+        .btn-success:disabled {
+            background-color: #6c757d !important;
+            border-color: #6c757d !important;
+            color: #ffffff !important;
+        }
+        
+        .btn-danger:disabled {
+            background-color: #6c757d !important;
+            border-color: #6c757d !important;
+            color: #ffffff !important;
+        }
+        
+        .btn-primary:disabled {
+            background-color: #6c757d !important;
+            border-color: #6c757d !important;
+            color: #ffffff !important;
+        }
+        
         .btn-loading {
             position: relative;
             color: transparent !important;
@@ -75,6 +102,7 @@
 
         // Mapping from spider name to site URL
         const spiderSiteMap = {
+            // News spiders
             'tass': 'https://tass.ru/',
             'rbc': 'https://rbc.ru/',
             'kommersant': 'https://kommersant.ru/',
@@ -88,9 +116,17 @@
             'rg': 'https://rg.ru/',
             'pnp': 'https://pnp.ru/',
             'ria': 'https://ria.ru/',
-            'kremlin': 'https://kremlin.ru/',
             'meduza': 'https://meduza.io/',
+            
+            // Government and official spiders
+            'kremlin': 'https://kremlin.ru/',
             'government': 'https://government.ru/news/',
+            'regulation': 'https://regulation.gov.ru/',
+            
+            // Legal document spiders
+            'pravo': 'http://publication.pravo.gov.ru/',
+            'sozd': 'https://sozd.duma.gov.ru/',
+            'eaeu': 'https://docs.eaeunion.org/',
         };
 
         // Fetch and display spider status
@@ -128,6 +164,11 @@
                             statusClass = '';
                         }
 
+                        // Determine button states based on spider status
+                        const startButtonDisabled = isRunning || isScheduled;
+                        const stopButtonDisabled = isDisabled;
+                        const runButtonDisabled = isRunning;
+
                         row.innerHTML = `
                             <td>${idx + 1}</td>
                             <td><a href="${spiderSiteMap[spider.name] || '#'}" target="_blank">${spiderSiteMap[spider.name] || spider.name}</a></td>
@@ -135,20 +176,14 @@
                             <td>${spider.last_update ? new Date(spider.last_update).toLocaleString() : ''}</td>
                             <td>
                                 <button class="btn btn-sm btn-success" onclick="startSpider('${spider.name}')" 
-                                    ${(isScheduled || isRunning) ? 'disabled' : ''}>Start</button>
+                                    ${startButtonDisabled ? 'disabled' : ''}>Start</button>
                                 <button class="btn btn-sm btn-danger" onclick="stopSpider('${spider.name}')" 
-                                    ${(isDisabled) ? 'disabled' : ''}>Stop</button>
-                                <button class="btn btn-sm btn-primary" onclick="runSpider('${spider.name}')" 
-                                    id="run-${spider.name}" ${isRunning ? 'disabled' : ''}>Run</button>
+                                    ${stopButtonDisabled ? 'disabled' : ''}>Stop</button>
+                                <button class="btn btn-sm btn-primary${isRunning ? ' btn-loading' : ''}" onclick="runSpider('${spider.name}')" 
+                                    id="run-${spider.name}" ${runButtonDisabled ? 'disabled' : ''}>Run</button>
                             </td>
                         `;
                         table.appendChild(row);
-
-                        // If spider is running, add loading state to its run button
-                        if (isRunning) {
-                            const runButton = document.getElementById(`run-${spider.name}`);
-                            runButton.classList.add('btn-loading');
-                        }
                     });
                 })
                 .catch(error => console.error('Error:', error));

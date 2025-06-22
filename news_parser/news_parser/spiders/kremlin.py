@@ -1,5 +1,5 @@
 import scrapy
-from datetime import datetime
+from datetime import datetime, timedelta
 from news_parser.items import NewsArticle
 from bs4 import BeautifulSoup
 import uuid
@@ -29,21 +29,35 @@ class KremlinSpider(scrapy.Spider):
     def parse(self, response):
         logging.info(f"Parsing main page: {response.url}")
         soup = BeautifulSoup(response.text, 'html.parser')
-        today_str = datetime.now().strftime('%Y-%m-%d')
-        logging.info(f"Looking for news block for date: {today_str}")
-
-        # Find all date headers
-        date_headers = soup.find_all('h2', class_='events__title')
+        
+        # Try multiple dates: yesterday, today, and day before yesterday
+        dates_to_try = [
+            (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'),  # yesterday
+            datetime.now().strftime('%Y-%m-%d'),  # today
+        ]
+        
         today_header = None
-        for h in date_headers:
-            time_tag = h.find('time')
-            if time_tag and time_tag.get('datetime') == today_str:
-                today_header = h
+        used_date = None
+        
+        for date_str in dates_to_try:
+            logging.info(f"Looking for news block for date: {date_str}")
+            
+            # Find all date headers
+            date_headers = soup.find_all('h2', class_='events__title')
+            for h in date_headers:
+                time_tag = h.find('time')
+                if time_tag and time_tag.get('datetime') == date_str:
+                    today_header = h
+                    used_date = date_str
+                    break
+            if today_header:
                 break
+                
         if not today_header:
-            logging.info(f"No news block found for today: {today_str}")
+            logging.info(f"No news block found for any of the dates: {dates_to_try}")
             return
-        logging.info(f"Found today's news block header.")
+            
+        logging.info(f"Found news block for date: {used_date}")
 
         # Collect all .hentry news items after this header until the next date header
         news_items = []
@@ -52,7 +66,7 @@ class KremlinSpider(scrapy.Spider):
                 break  # Stop at the next date header
             if sib.name == 'div' and 'hentry' in sib.get('class', []):
                 news_items.append(sib)
-        logging.info(f"Found {len(news_items)} news items for today.")
+        logging.info(f"Found {len(news_items)} news items for date: {used_date}")
 
         for item in news_items:
             h3 = item.find('h3', class_='hentry__title')
@@ -68,13 +82,21 @@ class KremlinSpider(scrapy.Spider):
     def parse_article(self, response):
         logging.info(f"Parsing article: {response.url}")
         soup = BeautifulSoup(response.text, 'html.parser')
-        # Extract the article title
-        title_tag = soup.find('h1', class_='publication__title')
+        # Save the HTML for inspection (only for the first article)
+        if not hasattr(self, '_saved_article_html'):
+            with open('kremlin_article_debug.html', 'w', encoding='utf-8') as f:
+                f.write(response.text)
+            logging.info(f"Saved article HTML to kremlin_article_debug.html for inspection")
+            self._saved_article_html = True
+        # Extract the article title using the correct selector
+        title_tag = soup.find('h1', class_='entry-title p-name')
         title = title_tag.get_text(strip=True) if title_tag else ''
-        # Extract the article content
-        content_div = soup.find('div', class_='publication__text')
+        logging.info(f"Extracted title: {title}")
+        # Extract the article content using the correct selector
+        content_div = soup.find('div', class_='entry-content e-content read__internal_content')
         paragraphs = content_div.find_all('p') if content_div else []
         article_text = '\n'.join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
+        logging.info(f"Extracted text length: {len(article_text)} characters")
         article = NewsArticle()
         article['id'] = str(uuid.uuid4())
         article['text'] = article_text

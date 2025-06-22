@@ -32,28 +32,34 @@ class GazetaSpider(scrapy.Spider):
             f.write(response.text)
         logging.info("Saved HTML to gazeta_first_page.html")
         
-        # Find all news items
-        news_items = response.css('div.news-item')
+        # Find all news items - they are <a> tags with class "item"
+        news_items = response.css('a.item[href*="/news/"]')
         logging.info(f"Found {len(news_items)} news items on the page")
         
         for item in news_items:
             # Get article link
-            link = item.css('a::attr(href)').get()
+            link = item.css('::attr(href)').get()
             if not link:
                 continue
                 
             url = response.urljoin(link)
             logging.info(f"Found article URL: {url}")
             
-            # Get article title
-            title = item.css('h3::text').get() or item.css('a::text').get()
+            # Get article title from div.item-text
+            title = item.css('div.item-text::text').get()
+            if not title:
+                # Fallback to any text in the item
+                title = item.css('::text').get()
             if not title:
                 continue
             title = title.strip()
             logging.info(f"Found article title: {title}")
             
-            # Get article time
-            time_text = item.css('span.time::text').get()
+            # Get article time from time element
+            time_text = item.css('time.time::text').get()
+            if not time_text:
+                # Try to get datetime attribute
+                time_text = item.css('time.time::attr(datetime)').get()
             if not time_text:
                 continue
             logging.info(f"Found article time: {time_text}")

@@ -1,0 +1,82 @@
+import scrapy
+import xml.etree.ElementTree as ET
+from datetime import datetime
+import re
+import uuid
+
+class RegulationSpider(scrapy.Spider):
+    name = 'regulation'
+    allowed_domains = ['regulation.gov.ru']
+    start_urls = ['https://regulation.gov.ru/rss']
+
+    custom_settings = {
+        'ROBOTSTXT_OBEY': False,
+        'LOG_LEVEL': 'DEBUG',
+    }
+
+    def parse(self, response):
+        root = ET.fromstring(response.text)
+        for item in root.findall('.//item'):
+            guid = item.findtext('guid')
+            link = item.findtext('link')
+            author = item.findtext('author')
+            title = item.findtext('title')
+            description = item.findtext('description')
+
+            # Parse fields from description
+            desc_fields = self.parse_description(description)
+
+            # Convert date to timestamp
+            published_at = self.parse_date(desc_fields.get('Дата создания'))
+
+            # Compose structured item
+            law_metadata = {
+                'originalId': guid,
+                'docKind': desc_fields.get('Вид', ''),
+                'title': title,
+                'source': 'regulation.gov.ru',
+                'url': link,
+                'publishedAt': published_at,
+                'jurisdiction': 'RU',
+                'language': 'ru',
+                'developer': desc_fields.get('Разработчик', ''),
+                'procedure': desc_fields.get('Процедура', ''),
+                'projectId': desc_fields.get('ID проекта', ''),
+                'author': author,
+                'rawDescription': description,
+            }
+
+            yield {
+                'id': str(uuid.uuid4()),
+                'text': title,
+                'lawMetadata': law_metadata
+            }
+
+    def parse_description(self, description):
+        # Parse multi-line description into a dict
+        fields = {}
+        if not description:
+            return fields
+        for line in description.split('\n'):
+            match = re.match(r'([^:]+):\s*"?(.+?)"?$', line.strip())
+            if match:
+                key, value = match.groups()
+                fields[key.strip()] = value.strip()
+        return fields
+
+    def parse_date(self, date_str):
+        # Parse date string like '21 июня 2025' to timestamp
+        if not date_str:
+            return None
+        months = {
+            'января': 1, 'февраля': 2, 'марта': 3, 'апреля': 4, 'мая': 5, 'июня': 6,
+            'июля': 7, 'августа': 8, 'сентября': 9, 'октября': 10, 'ноября': 11, 'декабря': 12
+        }
+        match = re.match(r'(\d{1,2})\s+(\w+)\s+(\d{4})', date_str)
+        if match:
+            day, month_rus, year = match.groups()
+            month = months.get(month_rus.lower())
+            if month:
+                dt = datetime(int(year), month, int(day))
+                return int(dt.timestamp())
+        return None 

@@ -89,3 +89,33 @@ This parsing system will enable efficient and automated data collection from leg
     "parsed_at": ,
   }
 }
+
+
+
+{
+  "id": "2384451b-c8db-4c12-86a4-1eacb9382c3e",
+  "text": "Draft text of the regulatory legal act,",
+  "lawMetadata": {
+    "originalId": "157552",
+    "docKind": "bill",
+    "title": "On the approval of industry-specific features of categorizing critical information infrastructure objects in the field of nuclear energy",
+    "source": "regulation.gov.ru",
+    "url": "https://regulation.gov.ru/Regulation/Npa/PublicView?npaID=157552",
+    "publishedAt": 1738627200,
+    "parsedAt": 1738692000,
+    "jurisdiction": "RU",
+    "language": "ru",
+    "stage": "public_discussion",
+    "discussionPeriod": {
+      "start": 1738627200,
+      "end": 1739654400   // 2025-07-18 T00:00:00Z
+    },
+    "explanatoryNote": {
+      "fileId": "f90c1e…",
+      "url": "https://regulation.gov.ru/Files/GetFile?fileid=f90c1e…",
+      "mimeType": "application/pdf"
+    },
+    "summaryReports": [],
+    "commentStats": { "total": 137 }
+  }
+}

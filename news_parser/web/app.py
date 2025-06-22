@@ -56,6 +56,7 @@ engine = create_engine(db_url)
 
 # Mapping of spider names to site domains
 SPIDER_SITE_MAP = {
+    # News spiders
     'tass': 'tass.ru',
     'rbc': 'rbc.ru',
     'kommersant': 'kommersant.ru',
@@ -69,6 +70,17 @@ SPIDER_SITE_MAP = {
     'rg': 'rg.ru',
     'pnp': 'pnp.ru',
     'ria': 'ria.ru',
+    'meduza': 'meduza.io',
+    
+    # Government and official spiders
+    'government': 'government.ru',
+    'kremlin': 'kremlin.ru',
+    'regulation': 'regulation.gov.ru',
+    
+    # Legal document spiders
+    'pravo': 'publication.pravo.gov.ru',
+    'sozd': 'sozd.duma.gov.ru',
+    'eaeu': 'docs.eaeunion.org',
 }
 
 # Helper to get spiders by site
@@ -320,6 +332,7 @@ def dashboard():
 def dashboard_run_spider(name):
     # Trigger the spider run (sync call)
     try:
+        # Immediately set status to 'running' for instant feedback
         set_spider_status(name, 'running')
         subprocess.Popen([
             PYTHON_PATH, '-m', 'scrapy', 'crawl', name
@@ -341,6 +354,7 @@ def dashboard_run_all():
         names = [row[0] for row in result]
     for name in names:
         try:
+            # Immediately set status to 'running' for instant feedback
             set_spider_status(name, 'running')
             subprocess.Popen([
                 PYTHON_PATH, '-m', 'scrapy', 'crawl', name
@@ -385,14 +399,19 @@ def run_spiders_immediate():
     if not spiders:
         spiders = [spider['name'] for spider in get_spider_status()]
     try:
+        # Immediately set all spiders to 'running' status for instant feedback
         for name in spiders:
             set_spider_status(name, 'running')
+        
+        # Then start the spider processes
+        for name in spiders:
             subprocess.Popen([
                 PYTHON_PATH, '-m', 'scrapy', 'crawl', name
             ], cwd=SCRAPY_PROJECT_PATH)
         return jsonify({'success': True, 'message': 'All selected spiders running successfully'})
     except Exception as e:
         logger.error(f"Error running spiders: {str(e)}", exc_info=True)
+        # If there's an error, set status back to 'error'
         for name in spiders:
             set_spider_status(name, 'error')
         return jsonify({'success': False, 'message': f'Error running spiders: {str(e)}'}), 500
