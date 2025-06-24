@@ -7,200 +7,181 @@ import logging
 import xml.etree.ElementTree as ET
 import requests
 import urllib3
+import os
 
 # Disable SSL warnings for testing
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-class MeduzaSpider(scrapy.Spider):
+class MeduzaSimpleSpider(scrapy.Spider):
     name = 'meduza'
     allowed_domains = ['meduza.io']
     
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
         'LOG_LEVEL': 'DEBUG',
+        'DOWNLOAD_DELAY': 2,
+        'RANDOMIZE_DOWNLOAD_DELAY': True,
+        'CONCURRENT_REQUESTS': 1,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 1,
     }
 
     def start_requests(self):
-        """Use requests to fetch RSS feed with permissive SSL"""
-        logging.info("Using requests to fetch Meduza RSS feed")
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-            'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
-            'Connection': 'keep-alive',
-        }
+        """Use simple requests to fetch RSS feed and extract data directly from it"""
+        logging.info("Using simple requests to fetch Meduza RSS feed")
         
-        # Try multiple endpoints
-        endpoints = [
-            'https://meduza.io/rss/all',
-            'https://meduza.io/api/v3/search?chrono=news&locale=ru&page=0&per_page=20',
-            'https://meduza.io/api/v3/collections/news',
-        ]
+        # Temporarily unset proxy environment variables
+        original_http_proxy = os.environ.get('HTTP_PROXY')
+        original_https_proxy = os.environ.get('HTTPS_PROXY')
         
-        for endpoint in endpoints:
+        try:
+            # Unset proxy environment variables
+            if 'HTTP_PROXY' in os.environ:
+                del os.environ['HTTP_PROXY']
+            if 'HTTPS_PROXY' in os.environ:
+                del os.environ['HTTPS_PROXY']
+            
+            logging.info("Proxy environment variables unset for direct connection")
+            
+            # Use the exact same approach as our working test script
+            url = 'https://meduza.io/rss/all'
+            
             try:
-                logging.info(f"Trying endpoint: {endpoint}")
-                resp = requests.get(
-                    endpoint, 
-                    headers=headers, 
-                    timeout=30, 
-                    verify=False,  # Disable SSL verification
-                    allow_redirects=True
-                )
+                logging.info(f"Fetching RSS from: {url}")
+                
+                # Simple requests call - no session, no retry logic
+                resp = requests.get(url, verify=False, timeout=30)
+                
+                logging.info(f"Response status: {resp.status_code}")
+                logging.info(f"Content length: {len(resp.text)}")
                 
                 if resp.status_code == 200 and resp.text.strip():
-                    logging.info(f"Successfully fetched from {endpoint}")
-                    with open(f'meduza_response_{endpoint.split("/")[-1]}.txt', 'w', encoding='utf-8') as f:
-                        f.write(resp.text[:1000])  # Save first 1000 chars for debugging
+                    logging.info("Successfully fetched RSS feed")
                     
-                    if 'rss' in endpoint:
-                        # Parse RSS feed
-                        for request in self.parse_rss_feed(resp.text):
-                            yield request
-                    else:
-                        # Parse API response
-                        for request in self.parse_api_response(resp.text):
-                            yield request
-                    break  # Success, stop trying other endpoints
+                    # Save response for debugging
+                    with open('meduza_rss_response.txt', 'w', encoding='utf-8') as f:
+                        f.write(resp.text[:2000])
+                    
+                    # Parse RSS and extract articles directly
+                    for article in self.parse_rss_feed(resp.text):
+                        yield article
                 else:
-                    logging.error(f"Failed to fetch {endpoint}: status {resp.status_code}")
+                    logging.error(f"Failed to fetch RSS: status {resp.status_code}")
                     
             except Exception as e:
-                logging.error(f"Error fetching {endpoint}: {e}")
-                continue
-        
-        if not hasattr(self, '_endpoints_tried'):
-            logging.error("All endpoints failed")
-            self._endpoints_tried = True
+                logging.error(f"Error fetching RSS: {e}")
+                
+        finally:
+            # Restore proxy environment variables
+            if original_http_proxy:
+                os.environ['HTTP_PROXY'] = original_http_proxy
+            if original_https_proxy:
+                os.environ['HTTPS_PROXY'] = original_https_proxy
+            logging.info("Proxy environment variables restored")
 
     def parse_rss_feed(self, rss_content):
-        """Parse RSS feed and yield article requests"""
+        """Parse RSS feed and extract article data directly"""
         try:
             root = ET.fromstring(rss_content)
-            # Handle namespaces
-            namespaces = {'rss': 'http://purl.org/rss/1.0/'}
+            items = root.findall('.//item')
             
-            items = root.findall('.//item') or root.findall('.//rss:item', namespaces)
+            logging.info(f"Found {len(items)} items in RSS feed")
             
             for item in items[:10]:  # Limit to 10 articles for testing
-                title_elem = item.find('title') or item.find('rss:title', namespaces)
-                link_elem = item.find('link') or item.find('rss:link', namespaces)
-                desc_elem = item.find('description') or item.find('rss:description', namespaces)
-                pub_date_elem = item.find('pubDate') or item.find('rss:pubDate', namespaces)
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+                desc_elem = item.find('description')
+                pub_date_elem = item.find('pubDate')
+                guid_elem = item.find('guid')
                 
                 if link_elem is not None and link_elem.text:
                     url = link_elem.text.strip()
                     title = title_elem.text.strip() if title_elem is not None and title_elem.text else ''
                     description = desc_elem.text.strip() if desc_elem is not None and desc_elem.text else ''
                     pub_date = pub_date_elem.text.strip() if pub_date_elem is not None and pub_date_elem.text else ''
+                    guid = guid_elem.text.strip() if guid_elem is not None and guid_elem.text else ''
                     
-                    logging.info(f"Found article: {title} - {url}")
+                    logging.info(f"Processing article: {title}")
                     
-                    yield scrapy.Request(
-                        url=url,
-                        callback=self.parse_article,
-                        meta={
-                            'title': title,
-                            'description': description,
-                            'pub_date': pub_date
-                        }
-                    )
+                    # Extract content from description (RSS feed often contains full content)
+                    article_text = self.extract_content_from_description(description)
+                    
+                    # Parse publication date
+                    published_at = self.parse_publication_date(pub_date)
+                    
+                    # Create article item with the same structure as legal documents
+                    article = NewsArticle()
+                    article['id'] = str(uuid.uuid4())
+                    article['text'] = article_text
+                    
+                    # Add metadata structure matching the legal documents format
+                    article['metadata'] = {
+                        'originalId': guid if guid else str(uuid.uuid4()),
+                        'docKind': 'news_article',
+                        'title': title,
+                        'source': 'meduza',
+                        'url': url,
+                        'publishedAt': published_at,
+                        'parsedAt': int(datetime.now().timestamp()),
+                        'jurisdiction': 'RU',
+                        'language': 'ru',
+                        'stage': 'published',
+                        'summary': description[:500] if description else '',
+                        'categories': [],
+                        'images': [],
+                        'author': '',
+                        'commentStats': { 'total': 0 }
+                    }
+                    
+                    logging.info(f"Successfully extracted article: {title}")
+                    yield article
+                    
         except Exception as e:
             logging.error(f"Error parsing RSS feed: {e}")
 
-    def parse_api_response(self, api_content):
-        """Parse API response and yield article requests"""
+    def extract_content_from_description(self, description):
+        """Extract clean text content from RSS description"""
+        if not description:
+            return ''
+        
         try:
-            import json
-            data = json.loads(api_content)
+            # Parse HTML description
+            soup = BeautifulSoup(description, 'html.parser')
             
-            # Try different possible structures
-            documents = data.get('documents', {})
-            if not documents:
-                documents = data.get('collection', {}).get('documents', {})
+            # Remove script and style elements
+            for script in soup(["script", "style"]):
+                script.decompose()
             
-            for doc_id, doc_data in list(documents.items())[:10]:  # Limit to 10 articles
-                url = f"https://meduza.io/news/{doc_id}"
-                title = doc_data.get('title', '')
-                
-                logging.info(f"Found article from API: {title} - {url}")
-                
-                yield scrapy.Request(
-                    url=url,
-                    callback=self.parse_article,
-                    meta={
-                        'title': title,
-                        'description': '',
-                        'pub_date': ''
-                    }
-                )
+            # Get text content
+            text = soup.get_text()
+            
+            # Clean up whitespace
+            lines = (line.strip() for line in text.splitlines())
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            text = ' '.join(chunk for chunk in chunks if chunk)
+            
+            return text
         except Exception as e:
-            logging.error(f"Error parsing API response: {e}")
+            logging.warning(f"Error extracting content from description: {e}")
+            return description
+
+    def parse_publication_date(self, pub_date):
+        """Parse publication date from RSS"""
+        if not pub_date:
+            return int(datetime.now().timestamp())
+        
+        try:
+            # Try to parse various date formats
+            from dateutil import parser
+            parsed_date = parser.parse(pub_date)
+            return int(parsed_date.timestamp())
+        except Exception as e:
+            logging.warning(f"Error parsing publication date '{pub_date}': {e}")
+            return int(datetime.now().timestamp())
 
     def parse(self, response):
-        """Not used with requests approach"""
+        """Not used with RSS-only approach"""
         pass
 
     def parse_article(self, response):
-        """Parse individual article page"""
-        url = response.url
-        title = response.meta.get('title', '')
-        description = response.meta.get('description', '')
-        pub_date = response.meta.get('pub_date', '')
-        
-        logging.info(f"Parsing Meduza article: {url}")
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        if not hasattr(self, '_saved_article_html'):
-            with open('meduza_article_debug.html', 'w', encoding='utf-8') as f:
-                f.write(response.text)
-            self._saved_article_html = True
-        
-        # Extract title
-        extracted_title = title
-        for selector in ['h1', '.headline', '.title', '.article-title', 'h2']:
-            title_elem = soup.select_one(selector)
-            if title_elem:
-                extracted_title = title_elem.get_text(strip=True)
-                if extracted_title:
-                    break
-        
-        # Extract content
-        article_text = ''
-        for selector in ['.article-content', '.content', '.article-text', '.text', 'article']:
-            content_elem = soup.select_one(selector)
-            if content_elem:
-                article_text = content_elem.get_text(strip=True)
-                if article_text:
-                    break
-        
-        # Use description if no content found
-        if not article_text and description:
-            desc_soup = BeautifulSoup(description, 'html.parser')
-            article_text = desc_soup.get_text(strip=True)
-        
-        # Parse publication date
-        published_at = int(datetime.now().timestamp())
-        if pub_date:
-            try:
-                # Try to parse various date formats
-                from dateutil import parser
-                parsed_date = parser.parse(pub_date)
-                published_at = int(parsed_date.timestamp())
-            except:
-                pass
-        
-        if extracted_title and article_text:
-            article = NewsArticle()
-            article['id'] = str(uuid.uuid4())
-            article['title'] = extracted_title
-            article['content'] = article_text
-            article['url'] = url
-            article['source'] = 'meduza'
-            article['published_at'] = published_at
-            article['scraped_at'] = int(datetime.now().timestamp())
-            
-            logging.info(f"Successfully extracted article: {extracted_title}")
-            yield article
-        else:
-            logging.warning(f"Failed to extract content from {url}") 
+        """Not used with RSS-only approach"""
+        pass 
