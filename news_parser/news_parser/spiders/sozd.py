@@ -52,24 +52,103 @@ class SozdSpider(scrapy.Spider):
         title_elem = soup.find('h1') or soup.find('title')
         title = title_elem.get_text(strip=True) if title_elem else None
         
-        # Extract main content/text
+        # Extract main content/text - target specific content areas
         content_text = ""
+        
+        logging.info(f"Parsing bill detail page: {response.url}")
+        
+        # First, try to find the explanatory note or main bill content
+        # Look for specific content areas that contain the actual bill text
         content_selectors = [
-            '.bill-content', '.document-content', '.text-content',
-            '.content', 'main', 'article', '.bill-text', '#content'
+            '.explanatory-note',
+            '.bill-text',
+            '.document-text',
+            '.main-content',
+            '.content-area',
+            '.text-content',
+            '.bill-content',
+            '.document-content',
+            'article',
+            'main',
+            '.content',
+            '#content',
+            '.document',
+            '.text',
+            '.description',
+            '.explanatory',
+            '.note'
         ]
         
         for selector in content_selectors:
             content_elem = soup.select_one(selector)
             if content_elem:
-                content_text = content_elem.get_text(strip=True)
-                break
+                # Remove navigation, menus, and other UI elements
+                for elem in content_elem.find_all(['nav', 'menu', '.navigation', '.sidebar', '.menu', '.search', '.filter', 'header', 'footer', '.help', '.info']):
+                    elem.decompose()
+                content_text = content_elem.get_text(separator=' ', strip=True)
+                logging.info(f"Found content using selector '{selector}': {len(content_text)} chars")
+                if len(content_text) > 100:  # Only use if we got substantial content
+                    break
         
-        # If no specific content found, get all text from body
-        if not content_text:
+        # If no specific content area found, try to extract from specific sections
+        if not content_text or len(content_text) < 100:
+            # Look for explanatory note text specifically
+            explanatory_text = ""
+            for text_elem in soup.find_all(['p', 'div', 'span']):
+                text = text_elem.get_text(strip=True)
+                if 'ПОЯСНИТЕЛЬНАЯ ЗАПИСКА' in text or 'проекту федерального закона' in text:
+                    # Get the parent element that contains the full explanatory note
+                    parent = text_elem.parent
+                    if parent:
+                        explanatory_text = parent.get_text(separator=' ', strip=True)
+                        logging.info(f"Found explanatory note: {len(explanatory_text)} chars")
+                        break
+            
+            if explanatory_text:
+                content_text = explanatory_text
+        
+        # If still no content, try to find any substantial text content
+        if not content_text or len(content_text) < 100:
+            # Look for any div or p elements with substantial text
+            for elem in soup.find_all(['div', 'p']):
+                text = elem.get_text(strip=True)
+                if len(text) > 200 and ('закон' in text.lower() or 'федеральный' in text.lower() or 'проект' in text.lower()):
+                    content_text = text
+                    logging.info(f"Found substantial text content: {len(content_text)} chars")
+                    break
+        
+        # If still no content, try to get text from body but clean it up
+        if not content_text or len(content_text) < 100:
             body = soup.find('body')
             if body:
-                content_text = body.get_text(strip=True)
+                # Remove all script, style, nav, header, footer elements
+                for elem in body.find_all(['script', 'style', 'nav', 'header', 'footer', 'aside']):
+                    elem.decompose()
+                content_text = body.get_text(separator=' ', strip=True)
+                logging.info(f"Using body content: {len(content_text)} chars")
+        
+        # Clean up the content - remove excessive whitespace and navigation text
+        if content_text:
+            # Remove common navigation and UI text patterns
+            content_text = re.sub(r'Система обеспечениязаконодательной деятельности.*?СОЗД.*?Объекты законотворчества', '', content_text, flags=re.DOTALL)
+            content_text = re.sub(r'©Государственная Дума Федерального Собрания Российской Федерации.*?СОЗД ГАС.*?©ГД РФ', '', content_text, flags=re.DOTALL)
+            content_text = re.sub(r'НаверхЗакрытьПредупреждение.*?Закрыть', '', content_text, flags=re.DOTALL)
+            content_text = re.sub(r'Карточка законопроекта.*?Видеоописание функционала страницы', '', content_text, flags=re.DOTALL)
+            
+            # Clean up whitespace
+            content_text = re.sub(r'\s+', ' ', content_text).strip()
+            
+            # If content is still too long, try to extract just the explanatory note
+            if len(content_text) > 5000:
+                explanatory_match = re.search(r'(ПОЯСНИТЕЛЬНАЯ ЗАПИСКА.*?)(?=©|Наверх|Карточка|$)', content_text, flags=re.DOTALL)
+                if explanatory_match:
+                    content_text = explanatory_match.group(1).strip()
+        
+        logging.info(f"Final content length: {len(content_text)}")
+        if content_text:
+            logging.info(f"Content preview: {content_text[:200]}...")
+        else:
+            logging.warning("No content extracted!")
         
         # Extract metadata
         registration_date = None
@@ -109,9 +188,16 @@ class SozdSpider(scrapy.Spider):
                 "jurisdiction": "RU",
                 "language": "ru",
                 "stage": stage,
-                "discussionPeriod": None,
-                "explanatoryNote": None,
+                "discussionPeriod": {
+                    "start": None,
+                    "end": None
+                },
+                "explanatoryNote": {
+                    "fileId": None,
+                    "url": None,
+                    "mimeType": None
+                },
                 "summaryReports": [],
-                "commentStats": None
+                "commentStats": {"total": 0}
             }
         } 

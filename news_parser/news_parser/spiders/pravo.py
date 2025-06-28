@@ -52,10 +52,17 @@ class PravoSpider(scrapy.Spider):
                 'jurisdiction': 'RU',
                 'language': 'ru',
                 'stage': None,
-                'discussionPeriod': None,
-                'explanatoryNote': None,
+                'discussionPeriod': {
+                    'start': None,
+                    'end': None
+                },
+                'explanatoryNote': {
+                    'fileId': None,
+                    'url': None,
+                    'mimeType': None
+                },
                 'summaryReports': [],
-                'commentStats': None
+                'commentStats': {'total': 0}
             }
 
             yield {

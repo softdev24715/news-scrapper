@@ -37,13 +37,21 @@ class RegulationSpider(scrapy.Spider):
                 'source': 'regulation.gov.ru',
                 'url': link,
                 'publishedAt': published_at,
+                'parsedAt': int(datetime.now().timestamp()),
                 'jurisdiction': 'RU',
                 'language': 'ru',
-                'developer': desc_fields.get('Разработчик', ''),
-                'procedure': desc_fields.get('Процедура', ''),
-                'projectId': desc_fields.get('ID проекта', ''),
-                'author': author,
-                'rawDescription': description,
+                'stage': 'public_discussion',  # Default stage for regulation.gov.ru documents
+                'discussionPeriod': {
+                    'start': None,
+                    'end': None
+                },
+                'explanatoryNote': {
+                    'fileId': None,
+                    'url': None,
+                    'mimeType': None
+                },
+                'summaryReports': [],
+                'commentStats': {'total': 0}
             }
 
             yield {

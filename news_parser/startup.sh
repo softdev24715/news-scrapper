@@ -36,3 +36,7 @@ EOL
 # Enable and start service
 systemctl enable news-scraper
 systemctl start news-scraper 
+systemctl status news-scraper 
+systemctl status news-scraper 
+sudo journalctl -u news-scraper -n 50 --no-pager
+echo sudo journalctl -u news-scraper -f 

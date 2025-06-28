@@ -121,23 +121,28 @@ class PostgreSQLPipeline:
 
     def _save_news_article(self, item_dict):
         """Save a news article to the articles table"""
-        article = Article(
-            id=item_dict['id'],
-            text=item_dict['text'],
-            source=item_dict['metadata']['source'],
-            url=item_dict['metadata']['url'],
-            header=item_dict['metadata']['header'],
-            published_at=item_dict['metadata']['published_at'],
-            published_at_iso=datetime.fromisoformat(item_dict['metadata']['published_at_iso'].replace('Z', '+00:00')),
-            parsed_at=item_dict['metadata']['parsed_at'],
-            author=item_dict['metadata'].get('author'),
-            categories=item_dict['metadata'].get('categories'),
-            images=item_dict['metadata'].get('images')
-        )
-        
-        self.session.add(article)
-        self.session.commit()
-        logging.info(f"Saved news article {article.id} to database")
+        try:
+            article = Article(
+                id=item_dict['id'],
+                text=item_dict['text'],
+                source=item_dict['source'],
+                url=item_dict['url'],
+                header=item_dict['header'],
+                published_at=item_dict['published_at'],
+                published_at_iso=datetime.fromisoformat(item_dict['published_at_iso'].replace('Z', '+00:00')),
+                parsed_at=item_dict['parsed_at'],
+                author=item_dict.get('author'),
+                categories=item_dict.get('categories'),
+                images=item_dict.get('images')
+            )
+            
+            self.session.add(article)
+            self.session.commit()
+            logging.info(f"Saved news article {article.id} to database")
+        except Exception as e:
+            logging.error(f"Error saving news article: {str(e)}")
+            logging.error(f"Item dict: {item_dict}")
+            raise
 
     def _save_legal_document(self, item_dict):
         """Save a legal document to the legal_documents table"""
@@ -152,7 +157,7 @@ class PostgreSQLPipeline:
             source=law_metadata.get('source'),
             url=law_metadata.get('url'),
             published_at=law_metadata.get('publishedAt'),
-            parsed_at=law_metadata.get('parsedAt'),
+            parsed_at=law_met1adata.get('parsedAt'),
             jurisdiction=law_metadata.get('jurisdiction'),
             language=law_metadata.get('language'),
             stage=law_metadata.get('stage'),
@@ -168,8 +173,24 @@ class PostgreSQLPipeline:
 
     def close_spider(self, spider):
         if self.session:
-            self.session.close()
-            logging.info(f"Closed database connection for spider {spider.name}")
+            try:
+                # Update spider status to "Scheduled" (completed successfully)
+                self.session.execute(
+                    text("""
+                        UPDATE spider_status 
+                        SET status = 'scheduled', last_update = NOW() 
+                        WHERE name = :name
+                    """),
+                    {"name": spider.name}
+                )
+                self.session.commit()
+                logging.info(f"Updated spider {spider.name} status to 'Scheduled' - completed successfully")
+            except Exception as e:
+                self.session.rollback()
+                logging.error(f"Error updating spider status to 'Scheduled': {str(e)}")
+            finally:
+                self.session.close()
+                logging.info(f"Closed database connection for spider {spider.name}")
 
 class LegalDocumentsPipeline:
     """Pipeline specifically for legal documents"""
@@ -234,5 +255,21 @@ class LegalDocumentsPipeline:
 
     def close_spider(self, spider):
         if self.session:
-            self.session.close()
-            logging.info(f"Closed database connection for legal documents spider {spider.name}")
+            try:
+                # Update spider status to "Scheduled" (completed successfully)
+                self.session.execute(
+                    text("""
+                        UPDATE spider_status 
+                        SET status = 'scheduled', last_update = NOW() 
+                        WHERE name = :name
+                    """),
+                    {"name": spider.name}
+                )
+                self.session.commit()
+                logging.info(f"Updated legal documents spider {spider.name} status to 'Scheduled' - completed successfully")
+            except Exception as e:
+                self.session.rollback()
+                logging.error(f"Error updating legal documents spider status to 'scheduled': {str(e)}")
+            finally:
+                self.session.close()
+                logging.info(f"Closed database connection for legal documents spider {spider.name}")

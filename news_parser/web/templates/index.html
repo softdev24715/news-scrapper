@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>News and Legislation Sites Scraping Dashboard</title>
+    <title>Logistics & Transport Sites Scraping Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .status-ok { color: green; }
@@ -38,13 +38,6 @@
             color: #ffffff !important;
         }
         
-        #runAllBtn:disabled {
-            background-color: #6c757d !important;
-            border-color: #6c757d !important;
-            color: #ffffff !important;
-            opacity: 0.65 !important;
-        }
-        
         .btn-loading {
             position: relative;
             color: transparent !important;
@@ -72,17 +65,31 @@
                 transform: rotate(1turn);
             }
         }
+        
+        .site-category {
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        
+        .site-category h5 {
+            margin: 0;
+            color: #007bff;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="container mt-4">
-        <h1>News and Legislation Sites Scraping Dashboard</h1>
+        <h1>Logistics & Transport Sites Scraping Dashboard</h1>
         
         <div class="row mb-4">
             <div class="col">
                 <button class="btn btn-success" onclick="startAllSpiders()" id="startAllBtn">Start All</button>
                 <button class="btn btn-danger" onclick="stopAllSpiders()" id="stopAllBtn">Stop All</button>
-                <button class="btn btn-primary" disabled id="runAllBtn">Run All</button>
+                <button class="btn btn-primary" onclick="runAllSpiders()" id="runAllBtn">Run All</button>
             </div>
         </div>
 
@@ -91,7 +98,8 @@
                 <thead>
                     <tr>
                         <th>No</th>
-                        <th>Site Url</th>
+                        <th>Site URL</th>
+                        <th>Category</th>
                         <th>Status</th>
                         <th>Last Update</th>
                         <th>Actions</th>
@@ -107,33 +115,41 @@
     <script>
         let runningSpiders = new Set();
 
-        // Mapping from spider name to site URL
+        // Mapping from spider name to site URL and category
         const spiderSiteMap = {
-            // News spiders
-            'tass': 'https://tass.ru/',
-            'rbc': 'https://rbc.ru/',
-            'kommersant': 'https://kommersant.ru/',
-            'lenta': 'https://lenta.ru/',
-            'gazeta': 'https://gazeta.ru/',
-            'graininfo': 'https://graininfo.ru/',
-            'vedomosti': 'https://vedomosti.ru/',
-            'izvestia': 'https://iz.ru/',
-            'interfax': 'https://interfax.ru/',
-            'forbes': 'https://forbes.ru/',
-            'rg': 'https://rg.ru/',
-            'pnp': 'https://pnp.ru/',
-            'ria': 'https://ria.ru/',
-            'meduza': 'https://meduza.io/',
+            // Ukrainian Logistics & Transport
+            'cfts': 'https://cfts.org.ua/',
+            'logistics_ukraine': 'https://logistics-ukraine.com/',
+            'logist_today': 'https://logist.today/',
+            'logist_fm': 'https://logist.fm/',
+            'trans_info': 'https://trans.info/ua',
+            'railfreight': 'https://railfreight.com/',
+            'ports_ua': 'https://ports.ua/',
+            'mindev_gov_ua': 'https://mindev.gov.ua/',
+            'uz_gov_ua': 'https://uz.gov.ua/',
+            'uspa_gov_ua': 'https://uspa.gov.ua/',
             
-            // Government and official spiders
-            'kremlin': 'https://kremlin.ru/',
-            'government': 'https://government.ru/news/',
-            'regulation': 'https://regulation.gov.ru/',
-            
-            // Legal document spiders
-            'pravo': 'http://publication.pravo.gov.ru/',
-            'sozd': 'https://sozd.duma.gov.ru/',
-            'eaeu': 'https://docs.eaeunion.org/',
+            // European Transport
+            'transport_ec': 'https://transport.ec.europa.eu/news',
+            'theloadstar': 'https://theloadstar.com/',
+            'hellenicshipping': 'https://hellenicshippingnews.com/',
+        };
+
+        // Category mapping for better organization
+        const siteCategories = {
+            'cfts': 'Ukrainian Logistics',
+            'logistics_ukraine': 'Ukrainian Logistics',
+            'logist_today': 'Ukrainian Logistics',
+            'logist_fm': 'Ukrainian Logistics',
+            'trans_info': 'Ukrainian Transport',
+            'railfreight': 'International Rail',
+            'ports_ua': 'Ukrainian Ports',
+            'mindev_gov_ua': 'Ukrainian Government',
+            'uz_gov_ua': 'Ukrainian Government',
+            'uspa_gov_ua': 'Ukrainian Government',
+            'transport_ec': 'European Commission',
+            'theloadstar': 'International Shipping',
+            'hellenicshipping': 'International Shipping',
         };
 
         // Fetch and display spider status
@@ -144,7 +160,12 @@
                     const table = document.getElementById('spiderTable');
                     table.innerHTML = '';
                     
-                    data.spiders.forEach((spider, idx) => {
+                    // Filter only our logistics spiders
+                    const logisticsSpiders = data.spiders.filter(spider => 
+                        spiderSiteMap.hasOwnProperty(spider.name)
+                    );
+                    
+                    logisticsSpiders.forEach((spider, idx) => {
                         const row = document.createElement('tr');
                         const isRunning = (spider.status === 'running');
                         const isScheduled = (spider.status === 'scheduled');
@@ -175,12 +196,12 @@
                         const startButtonDisabled = isRunning || isScheduled;
                         const stopButtonDisabled = isDisabled;
                         const runButtonDisabled = isRunning;
-                        // Show spinning if spider is in our runningSpiders set (for 5 minutes)
-                        const runButtonSpinning = runningSpiders.has(spider.name);
+                        const runButtonSpinning = isRunning; // Only spin if spider is actually running
 
                         row.innerHTML = `
                             <td>${idx + 1}</td>
                             <td><a href="${spiderSiteMap[spider.name] || '#'}" target="_blank">${spiderSiteMap[spider.name] || spider.name}</a></td>
+                            <td><span class="badge bg-info">${siteCategories[spider.name] || 'Unknown'}</span></td>
                             <td class="${statusClass}">${statusLabel}</td>
                             <td>${spider.last_update ? new Date(spider.last_update).toLocaleString() : ''}</td>
                             <td>
@@ -213,13 +234,35 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Spin for exactly 5 minutes (300,000 milliseconds)
+                    // Check status periodically until spider is done
+                    const checkStatus = setInterval(() => {
+                        fetch('/api/scraper/status')
+                            .then(response => response.json())
+                            .then(statusData => {
+                                const spider = statusData.spiders.find(s => s.name === spiderName);
+                                if (spider && spider.status === 'scheduled') {
+                                    clearInterval(checkStatus);
+                                    runButton.classList.remove('btn-loading');
+                                    runButton.disabled = false;
+                                    runningSpiders.delete(spiderName);
+                                    updateSpiderStatus();
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error checking status:', error);
+                            });
+                    }, 2000); // Check every 2 seconds
+                    
+                    // Fallback timeout - if spider takes too long, stop spinning after 5 minutes
                     setTimeout(() => {
-                        runButton.classList.remove('btn-loading');
-                        runButton.disabled = false;
-                        runningSpiders.delete(spiderName);
-                        updateSpiderStatus();
-                    }, 300000); // 5 minutes
+                        if (runningSpiders.has(spiderName)) {
+                            clearInterval(checkStatus);
+                            runButton.classList.remove('btn-loading');
+                            runButton.disabled = false;
+                            runningSpiders.delete(spiderName);
+                            updateSpiderStatus();
+                        }
+                    }, 300000); // 5 minutes fallback
                 } else {
                     // If request failed, remove spinning immediately
                     runButton.classList.remove('btn-loading');
@@ -268,12 +311,13 @@
             .catch(error => console.error('Error:', error));
         }
 
-        // Start all spiders
+        // Start all logistics spiders
         function startAllSpiders() {
+            const logisticsSpiderNames = Object.keys(spiderSiteMap);
             fetch('/api/scraper/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ spiders: [] })
+                body: JSON.stringify({ spiders: logisticsSpiderNames })
             })
             .then(response => response.json())
             .then(data => {
@@ -284,12 +328,13 @@
             .catch(error => console.error('Error:', error));
         }
 
-        // Stop all spiders
+        // Stop all logistics spiders
         function stopAllSpiders() {
+            const logisticsSpiderNames = Object.keys(spiderSiteMap);
             fetch('/api/scraper/stop', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ spiders: [] })
+                body: JSON.stringify({ spiders: logisticsSpiderNames })
             })
             .then(response => response.json())
             .then(data => {
@@ -300,16 +345,17 @@
             .catch(error => console.error('Error:', error));
         }
 
-        // Run all spiders
+        // Run all logistics spiders
         function runAllSpiders() {
             const runAllButton = document.getElementById('runAllBtn');
             runAllButton.classList.add('btn-loading');
             runAllButton.disabled = true;
             
+            const logisticsSpiderNames = Object.keys(spiderSiteMap);
             fetch('/api/scraper/immediate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ spiders: [] })
+                body: JSON.stringify({ spiders: logisticsSpiderNames })
             })
             .then(response => response.json())
             .then(data => {
@@ -319,7 +365,10 @@
                         fetch('/api/scraper/status')
                             .then(response => response.json())
                             .then(statusData => {
-                                const allCompleted = statusData.spiders.every(spider => 
+                                const logisticsSpiders = statusData.spiders.filter(spider => 
+                                    logisticsSpiderNames.includes(spider.name)
+                                );
+                                const allCompleted = logisticsSpiders.every(spider => 
                                     spider.status === 'scheduled' || spider.status === 'disabled'
                                 );
                                 if (allCompleted) {
@@ -357,7 +406,7 @@
 
         // Update status every 30 seconds
         updateSpiderStatus();
-        setInterval(updateSpiderStatus, 10000); // Check every 10 seconds instead of 30
+        setInterval(updateSpiderStatus, 30000);
     </script>
 </body>
 </html> 

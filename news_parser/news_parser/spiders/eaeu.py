@@ -47,11 +47,28 @@ class EaeuSpider(scrapy.Spider):
         """Parse individual document page to extract content"""
         soup = BeautifulSoup(response.text, 'html.parser')
         
+        logging.info(f"Parsing document page: {response.url}")
+        
         # Extract document title - look for specific title elements
         title = ""
         title_elem = soup.find('h1') or soup.find('h2') or soup.find(class_=re.compile(r'title|heading'))
         if title_elem:
             title = title_elem.get_text(strip=True)
+            logging.info(f"Found title: {title}")
+        
+        # Look for document number in the URL or page content
+        doc_number = ""
+        url_match = re.search(r'/documents/(\d+)/', response.url)
+        if url_match:
+            doc_number = url_match.group(1)
+            logging.info(f"Extracted doc number from URL: {doc_number}")
+        
+        # If no number from URL, try to find it in the content
+        if not doc_number:
+            number_match = re.search(r'№\s*(\d+)', title or response.text)
+            if number_match:
+                doc_number = number_match.group(1)
+                logging.info(f"Extracted doc number from content: {doc_number}")
         
         # Extract document content - look for main content areas
         content = ""
@@ -65,7 +82,9 @@ class EaeuSpider(scrapy.Spider):
             '.text-content',
             'article',
             'main',
-            '.document-body'
+            '.document-body',
+            '.doc-content',
+            '.document'
         ]
         
         for selector in content_selectors:
@@ -75,6 +94,7 @@ class EaeuSpider(scrapy.Spider):
                 for elem in content_elem.find_all(['nav', 'menu', '.navigation', '.sidebar', '.menu', '.search', '.filter']):
                     elem.decompose()
                 content = content_elem.get_text(separator=' ', strip=True)
+                logging.info(f"Found content using selector '{selector}': {len(content)} chars")
                 break
         
         # If no specific content area found, try to extract from the main body
@@ -87,6 +107,7 @@ class EaeuSpider(scrapy.Spider):
             body = soup.find('body')
             if body:
                 content = body.get_text(separator=' ', strip=True)
+                logging.info(f"Using body content: {len(content)} chars")
         
         # Clean up the content - remove excessive whitespace and navigation text
         if content:
@@ -99,18 +120,12 @@ class EaeuSpider(scrapy.Spider):
             # Clean up whitespace
             content = re.sub(r'\s+', ' ', content).strip()
         
-        # Extract document metadata
-        doc_number = ""
+        # Extract document date
         doc_date = ""
-        
-        # Look for document number and date in the content
-        number_match = re.search(r'№\s*(\d+)', title or content)
-        if number_match:
-            doc_number = number_match.group(1)
-        
         date_match = re.search(r'(\d{2}\.\d{2}\.\d{4})', title or content)
         if date_match:
             doc_date = date_match.group(1)
+            logging.info(f"Extracted date: {doc_date}")
         
         # Generate unique ID
         doc_id = str(uuid.uuid4())
@@ -123,6 +138,18 @@ class EaeuSpider(scrapy.Spider):
                 published_at = int(date_obj.timestamp())
             except:
                 pass
+        
+        # If title is still generic, try to extract a better title from content
+        if not title or title.lower() in ['документы', 'документ', 'documents']:
+            # Look for document titles in the content
+            title_match = re.search(r'(Решение ВЕЭС № \d+.*?)(?=\s|$)', content)
+            if title_match:
+                title = title_match.group(1).strip()
+                logging.info(f"Extracted better title from content: {title}")
+        
+        logging.info(f"Final title: {title}")
+        logging.info(f"Final doc number: {doc_number}")
+        logging.info(f"Content length: {len(content)}")
         
         yield {
             'id': doc_id,
@@ -138,9 +165,16 @@ class EaeuSpider(scrapy.Spider):
                 'jurisdiction': 'EAEU',
                 'language': 'ru',
                 'stage': None,
-                'discussionPeriod': None,
-                'explanatoryNote': None,
+                'discussionPeriod': {
+                    'start': None,
+                    'end': None
+                },
+                'explanatoryNote': {
+                    'fileId': None,
+                    'url': None,
+                    'mimeType': None
+                },
                 'summaryReports': [],
-                'commentStats': None
+                'commentStats': {'total': 0}
             }
         } 

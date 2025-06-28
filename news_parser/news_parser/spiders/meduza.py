@@ -108,28 +108,17 @@ class MeduzaSimpleSpider(scrapy.Spider):
                     # Parse publication date
                     published_at = self.parse_publication_date(pub_date)
                     
-                    # Create article item with the same structure as legal documents
+                    # Create article item with the exact structure from Note.md
                     article = NewsArticle()
                     article['id'] = str(uuid.uuid4())
                     article['text'] = article_text
-                    
-                    # Add metadata structure matching the legal documents format
                     article['metadata'] = {
-                        'originalId': guid if guid else str(uuid.uuid4()),
-                        'docKind': 'news_article',
-                        'title': title,
                         'source': 'meduza',
+                        'published_at': published_at,
+                        'published_at_iso': datetime.fromtimestamp(published_at).isoformat(),
                         'url': url,
-                        'publishedAt': published_at,
-                        'parsedAt': int(datetime.now().timestamp()),
-                        'jurisdiction': 'RU',
-                        'language': 'ru',
-                        'stage': 'published',
-                        'summary': description[:500] if description else '',
-                        'categories': [],
-                        'images': [],
-                        'author': '',
-                        'commentStats': { 'total': 0 }
+                        'header': title,  # Use title as header
+                        'parsed_at': int(datetime.now().timestamp()),
                     }
                     
                     logging.info(f"Successfully extracted article: {title}")

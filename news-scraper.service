@@ -1,0 +1,15 @@
+[Unit]
+Description=News Scraper Service
+After=network.target
+
+[Service]
+Type=simple
+User=your-username
+WorkingDirectory=/path/to/your/rus_scraper/news_parser
+Environment=PATH=/path/to/your/rus_scraper/venv/bin
+ExecStart=/path/to/your/rus_scraper/venv/bin/python -m scrapy crawl meduza_simple
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target 
