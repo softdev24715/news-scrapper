@@ -255,6 +255,8 @@
         // Run specific spider
         function runSpider(spiderName) {
             const runButton = document.getElementById(`run-${spiderName}`);
+            
+            // Immediately show spinning and disable button for instant feedback
             runButton.classList.add('btn-loading');
             runButton.disabled = true;
             runningSpiders.add(spiderName);
@@ -279,6 +281,9 @@
                                 if (spider && spider.status !== 'running') {
                                     clearInterval(checkCompletion);
                                     runningSpiders.delete(spiderName);
+                                    // Remove spinning and re-enable button when spider completes
+                                    runButton.classList.remove('btn-loading');
+                                    runButton.disabled = false;
                                     updateSpiderStatus();
                                 }
                             })
@@ -291,17 +296,22 @@
                     setTimeout(() => {
                         clearInterval(checkCompletion);
                         runningSpiders.delete(spiderName);
+                        // Remove spinning and re-enable button after timeout
+                        runButton.classList.remove('btn-loading');
+                        runButton.disabled = false;
                         updateSpiderStatus();
                     }, 600000); // 10 minutes
                 } else {
-                    // If request failed, remove spinning immediately
+                    // If request failed, remove spinning immediately and re-enable button
                     runButton.classList.remove('btn-loading');
                     runButton.disabled = false;
                     runningSpiders.delete(spiderName);
+                    console.error('Failed to start spider:', data.message);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
+                // Remove spinning and re-enable button on error
                 runButton.classList.remove('btn-loading');
                 runButton.disabled = false;
                 runningSpiders.delete(spiderName);
@@ -378,6 +388,7 @@
             const runAllButton = document.getElementById('runAllBtn');
             const spinnerOverlay = document.getElementById('spinnerOverlay');
             
+            // Immediately show spinning and disable button for instant feedback
             runAllButton.classList.add('btn-loading');
             runAllButton.disabled = true;
             spinnerOverlay.style.display = 'flex';
@@ -403,6 +414,7 @@
                                 );
                                 if (allCompleted) {
                                     clearInterval(checkStatus);
+                                    // Remove spinning and re-enable button when all spiders complete
                                     runAllButton.classList.remove('btn-loading');
                                     runAllButton.disabled = false;
                                     spinnerOverlay.style.display = 'none';
@@ -417,20 +429,23 @@
                     // Fallback timeout - if spiders take too long, stop spinning after 10 minutes
                     setTimeout(() => {
                         clearInterval(checkStatus);
+                        // Remove spinning and re-enable button after timeout
                         runAllButton.classList.remove('btn-loading');
                         runAllButton.disabled = false;
                         spinnerOverlay.style.display = 'none';
                         updateSpiderStatus();
                     }, 600000); // 10 minutes fallback
                 } else {
-                    // If request failed, remove spinning immediately
+                    // If request failed, remove spinning immediately and re-enable button
                     runAllButton.classList.remove('btn-loading');
                     runAllButton.disabled = false;
                     spinnerOverlay.style.display = 'none';
+                    console.error('Failed to start spiders:', data.message);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
+                // Remove spinning and re-enable button on error
                 runAllButton.classList.remove('btn-loading');
                 runAllButton.disabled = false;
                 spinnerOverlay.style.display = 'none';
