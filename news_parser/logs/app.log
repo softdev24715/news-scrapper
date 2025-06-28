@@ -8847,3 +8847,65 @@ server closed the connection unexpectedly
 2025-06-29 00:30:52,478 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
 2025-06-29 00:31:51,707 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
 2025-06-29 00:31:52,786 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:32:51,707 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:32:52,464 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:32:55,765 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:32:56,530 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:32:58,750 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:32:59,542 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:33:03,693 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:33:04,453 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:33:08,694 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:33:09,453 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:33:13,693 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:33:15,426 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:33:18,696 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:33:19,465 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:33:23,693 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:33:24,462 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:33:28,693 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:33:29,453 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:33:33,693 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:33:34,462 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:33:38,695 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:33:39,456 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:33:43,693 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:33:44,450 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:33:48,693 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:33:49,464 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:33:53,694 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:33:54,463 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:34:51,702 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:34:52,554 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:35:51,698 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:35:52,930 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:36:51,707 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:36:52,479 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:37:51,697 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:37:52,459 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:38:51,703 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:38:52,474 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:39:51,701 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:39:52,472 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:40:51,707 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:40:52,508 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:41:51,703 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:41:52,518 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:42:51,702 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:42:52,463 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:43:51,694 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:43:52,458 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:44:51,697 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:44:52,455 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:45:51,700 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:45:52,457 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:46:51,695 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:46:52,454 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:47:51,703 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:47:52,483 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:48:51,699 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:48:52,506 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:49:51,699 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:49:52,461 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200
+2025-06-29 00:50:51,703 - web.app - INFO - Incoming request: GET /api/scraper/status - args: {} - json: None
+2025-06-29 00:50:52,477 - web.app - INFO - Outgoing response: GET /api/scraper/status - status: 200

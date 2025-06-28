@@ -85,6 +85,21 @@ class PostgreSQLPipeline:
     def open_spider(self, spider):
         self.session = init_db(self.db_url)
         logging.info(f"Connected to database for spider {spider.name}")
+        
+        # Update spider status to 'running' when spider starts
+        try:
+            self.session.execute(
+                text("""
+                    UPDATE spider_status 
+                    SET status = 'running', last_update = NOW() 
+                    WHERE name = :name
+                """),
+                {"name": spider.name}
+            )
+            self.session.commit()
+            logging.info(f"Updated spider {spider.name} status to 'running'")
+        except Exception as e:
+            logging.error(f"Error updating spider {spider.name} status to 'running': {str(e)}")
 
     def process_item(self, item, spider):
         try:
@@ -99,16 +114,19 @@ class PostgreSQLPipeline:
                 # This is a news article
                 self._save_news_article(item_dict)
             
-            # Update spider status
-            self.session.execute(
-                text("""
-                    UPDATE spider_status 
-                    SET status = 'running', last_update = NOW() 
-                    WHERE name = :name
-                """),
-                {"name": spider.name}
-            )
-            self.session.commit()
+            # Update spider status to show it's still running
+            try:
+                self.session.execute(
+                    text("""
+                        UPDATE spider_status 
+                        SET status = 'running', last_update = NOW() 
+                        WHERE name = :name
+                    """),
+                    {"name": spider.name}
+                )
+                self.session.commit()
+            except Exception as e:
+                logging.error(f"Error updating spider {spider.name} status: {str(e)}")
             
         except IntegrityError as e:
             self.session.rollback()
@@ -188,6 +206,20 @@ class PostgreSQLPipeline:
             except Exception as e:
                 self.session.rollback()
                 logging.error(f"Error updating spider status to 'Scheduled': {str(e)}")
+                # Try to set status to 'error' if we can't set it to 'scheduled'
+                try:
+                    self.session.execute(
+                        text("""
+                            UPDATE spider_status 
+                            SET status = 'error', last_update = NOW() 
+                            WHERE name = :name
+                        """),
+                        {"name": spider.name}
+                    )
+                    self.session.commit()
+                    logging.info(f"Set spider {spider.name} status to 'error' due to failure")
+                except Exception as e2:
+                    logging.error(f"Failed to set spider {spider.name} status to 'error': {str(e2)}")
             finally:
                 self.session.close()
                 logging.info(f"Closed database connection for spider {spider.name}")
@@ -209,6 +241,21 @@ class LegalDocumentsPipeline:
     def open_spider(self, spider):
         self.session = init_db(self.db_url)
         logging.info(f"Connected to database for legal documents spider {spider.name}")
+        
+        # Update spider status to 'running' when spider starts
+        try:
+            self.session.execute(
+                text("""
+                    UPDATE spider_status 
+                    SET status = 'running', last_update = NOW() 
+                    WHERE name = :name
+                """),
+                {"name": spider.name}
+            )
+            self.session.commit()
+            logging.info(f"Updated legal documents spider {spider.name} status to 'running'")
+        except Exception as e:
+            logging.error(f"Error updating legal documents spider {spider.name} status to 'running': {str(e)}")
 
     def process_item(self, item, spider):
         try:
@@ -270,6 +317,20 @@ class LegalDocumentsPipeline:
             except Exception as e:
                 self.session.rollback()
                 logging.error(f"Error updating legal documents spider status to 'scheduled': {str(e)}")
+                # Try to set status to 'error' if we can't set it to 'scheduled'
+                try:
+                    self.session.execute(
+                        text("""
+                            UPDATE spider_status 
+                            SET status = 'error', last_update = NOW() 
+                            WHERE name = :name
+                        """),
+                        {"name": spider.name}
+                    )
+                    self.session.commit()
+                    logging.info(f"Set legal documents spider {spider.name} status to 'error' due to failure")
+                except Exception as e2:
+                    logging.error(f"Failed to set legal documents spider {spider.name} status to 'error': {str(e2)}")
             finally:
                 self.session.close()
                 logging.info(f"Closed database connection for legal documents spider {spider.name}")
