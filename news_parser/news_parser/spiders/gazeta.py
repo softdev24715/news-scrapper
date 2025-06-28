@@ -28,8 +28,8 @@ class GazetaSpider(scrapy.Spider):
     def parse(self, response):
         logging.info(f"Parsing main page: {response.url}")
         # Save the first page HTML to a file
-        with open('gazeta_first_page.html', 'w', encoding='utf-8') as f:
-            f.write(response.text)
+        # with open('gazeta_first_page.html', 'w', encoding='utf-8') as f:
+        #     f.write(response.text)
         logging.info("Saved HTML to gazeta_first_page.html")
         
         # Find all news items - they are <a> tags with class "item"
@@ -80,10 +80,12 @@ class GazetaSpider(scrapy.Spider):
         title = response.meta['title']
         logging.info(f"Parsing article: {url}")
         
-        # Get article content
-        content_html = response.css('div.article-text').get()
+        # Get article content - try multiple selectors including the correct one
+        content_html = response.css('div.b_article-text').get()  # Correct class name
         if not content_html:
-            content_html = response.css('div.article__text').get()
+            content_html = response.css('div.article-text').get()  # Fallback
+        if not content_html:
+            content_html = response.css('div.article__text').get()  # Another fallback
         
         soup = BeautifulSoup(content_html or '', 'html.parser')
         paragraphs = soup.find_all('p')

@@ -157,7 +157,7 @@ class PostgreSQLPipeline:
             source=law_metadata.get('source'),
             url=law_metadata.get('url'),
             published_at=law_metadata.get('publishedAt'),
-            parsed_at=law_met1adata.get('parsedAt'),
+            parsed_at=law_metadata.get('parsedAt'),
             jurisdiction=law_metadata.get('jurisdiction'),
             language=law_metadata.get('language'),
             stage=law_metadata.get('stage'),

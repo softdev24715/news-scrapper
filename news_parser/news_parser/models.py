@@ -44,17 +44,17 @@ class LegalDocument(Base):
 
     id = Column(String, primary_key=True)  # UUID from scraper
     text = Column(Text, nullable=False)
-    original_id = Column(String)  # Original document ID from source
-    doc_kind = Column(String)  # Type of document (bill, act, etc.)
-    title = Column(Text)  # Document title
-    source = Column(String, nullable=False)  # Source website
+    original_id = Column(String)  # Original document ID from source (e.g., "158")
+    doc_kind = Column(String)  # Type of document (act, bill, etc.)
+    title = Column(Text)  # Document title (e.g., "Решение ВЕЭС № 3")
+    source = Column(String, nullable=False)  # Source website (e.g., "docs.eaeunion.org")
     url = Column(String, unique=True, nullable=False)  # Document URL
     published_at = Column(Integer)  # Unix timestamp
     parsed_at = Column(Integer)  # Unix timestamp
-    jurisdiction = Column(String)  # Legal jurisdiction (RU, EAEU, etc.)
-    language = Column(String)  # Document language
+    jurisdiction = Column(String)  # Legal jurisdiction (EAEU, RU, etc.)
+    language = Column(String)  # Document language (ru, en, etc.)
     stage = Column(Text)  # Document stage/status
-    discussion_period = Column(JSON)  # Discussion period info
+    discussion_period = Column(JSON)  # Discussion period info (start/end dates)
     explanatory_note = Column(JSON)  # Explanatory note info
     summary_reports = Column(JSON)  # Summary reports
     comment_stats = Column(JSON)  # Comment statistics

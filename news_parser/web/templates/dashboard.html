@@ -9,8 +9,18 @@
         .status-ok { color: green; }
         .status-error { color: red; }
         .status-disabled { color: gray; }
-        .status-running { color: green; }
+        .status-running { 
+            color: green; 
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
         .status-scheduled { color: blue; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
         
         /* Disabled button styles */
         .btn:disabled {
@@ -72,6 +82,26 @@
                 transform: rotate(1turn);
             }
         }
+        
+        .spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .spinner-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -82,7 +112,7 @@
             <div class="col">
                 <button class="btn btn-success" onclick="startAllSpiders()" id="startAllBtn">Start All</button>
                 <button class="btn btn-danger" onclick="stopAllSpiders()" id="stopAllBtn">Stop All</button>
-                <button class="btn btn-primary" disabled id="runAllBtn">Run All</button>
+                <button class="btn btn-primary" onclick="runAllSpiders()" id="runAllBtn">Run All</button>
             </div>
         </div>
 
@@ -104,8 +134,19 @@
         </div>
     </div>
 
+    <!-- Spinner overlay for global operations -->
+    <div class="spinner-overlay" id="spinnerOverlay">
+        <div class="spinner-content">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Running spiders...</p>
+        </div>
+    </div>
+
     <script>
         let runningSpiders = new Set();
+        let lastStatus = {};
 
         // Mapping from spider name to site URL
         const spiderSiteMap = {
@@ -151,6 +192,13 @@
                         const isDisabled = (spider.status === 'disabled');
                         const isError = (spider.status === 'error');
 
+                        // Update running spiders set based on actual status
+                        if (isRunning) {
+                            runningSpiders.add(spider.name);
+                        } else {
+                            runningSpiders.delete(spider.name);
+                        }
+
                         // Map backend status to user-friendly label
                         let statusLabel = '';
                         let statusClass = '';
@@ -175,8 +223,8 @@
                         const startButtonDisabled = isRunning || isScheduled;
                         const stopButtonDisabled = isDisabled;
                         const runButtonDisabled = isRunning;
-                        // Show spinning if spider is in our runningSpiders set (for 5 minutes)
-                        const runButtonSpinning = runningSpiders.has(spider.name);
+                        // Show spinning if spider is running (based on actual status)
+                        const runButtonSpinning = isRunning;
 
                         row.innerHTML = `
                             <td>${idx + 1}</td>
@@ -194,6 +242,12 @@
                         `;
                         table.appendChild(row);
                     });
+                    
+                    // Update last status for comparison
+                    lastStatus = data.spiders.reduce((acc, spider) => {
+                        acc[spider.name] = spider.status;
+                        return acc;
+                    }, {});
                 })
                 .catch(error => console.error('Error:', error));
         }
@@ -213,13 +267,32 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Spin for exactly 5 minutes (300,000 milliseconds)
+                    // Update status immediately to show running state
+                    updateSpiderStatus();
+                    
+                    // Continue monitoring until spider completes
+                    const checkCompletion = setInterval(() => {
+                        fetch('/api/scraper/status')
+                            .then(response => response.json())
+                            .then(statusData => {
+                                const spider = statusData.spiders.find(s => s.name === spiderName);
+                                if (spider && spider.status !== 'running') {
+                                    clearInterval(checkCompletion);
+                                    runningSpiders.delete(spiderName);
+                                    updateSpiderStatus();
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error checking status:', error);
+                            });
+                    }, 2000); // Check every 2 seconds
+                    
+                    // Fallback timeout - stop monitoring after 10 minutes
                     setTimeout(() => {
-                        runButton.classList.remove('btn-loading');
-                        runButton.disabled = false;
+                        clearInterval(checkCompletion);
                         runningSpiders.delete(spiderName);
                         updateSpiderStatus();
-                    }, 300000); // 5 minutes
+                    }, 600000); // 10 minutes
                 } else {
                     // If request failed, remove spinning immediately
                     runButton.classList.remove('btn-loading');
@@ -303,8 +376,11 @@
         // Run all spiders
         function runAllSpiders() {
             const runAllButton = document.getElementById('runAllBtn');
+            const spinnerOverlay = document.getElementById('spinnerOverlay');
+            
             runAllButton.classList.add('btn-loading');
             runAllButton.disabled = true;
+            spinnerOverlay.style.display = 'flex';
             
             fetch('/api/scraper/immediate', {
                 method: 'POST',
@@ -314,18 +390,22 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Update status immediately to show running states
+                    updateSpiderStatus();
+                    
                     // Check status periodically until all spiders are done
                     const checkStatus = setInterval(() => {
                         fetch('/api/scraper/status')
                             .then(response => response.json())
                             .then(statusData => {
                                 const allCompleted = statusData.spiders.every(spider => 
-                                    spider.status === 'scheduled' || spider.status === 'disabled'
+                                    spider.status === 'scheduled' || spider.status === 'disabled' || spider.status === 'error'
                                 );
                                 if (allCompleted) {
                                     clearInterval(checkStatus);
                                     runAllButton.classList.remove('btn-loading');
                                     runAllButton.disabled = false;
+                                    spinnerOverlay.style.display = 'none';
                                     updateSpiderStatus();
                                 }
                             })
@@ -339,25 +419,28 @@
                         clearInterval(checkStatus);
                         runAllButton.classList.remove('btn-loading');
                         runAllButton.disabled = false;
+                        spinnerOverlay.style.display = 'none';
                         updateSpiderStatus();
                     }, 600000); // 10 minutes fallback
                 } else {
                     // If request failed, remove spinning immediately
                     runAllButton.classList.remove('btn-loading');
                     runAllButton.disabled = false;
+                    spinnerOverlay.style.display = 'none';
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 runAllButton.classList.remove('btn-loading');
                 runAllButton.disabled = false;
+                spinnerOverlay.style.display = 'none';
                 updateSpiderStatus();
             });
         }
 
-        // Update status every 30 seconds
+        // Update status every 5 seconds for more responsive updates
         updateSpiderStatus();
-        setInterval(updateSpiderStatus, 10000); // Check every 10 seconds instead of 30
+        setInterval(updateSpiderStatus, 5000);
     </script>
 </body>
 </html> 

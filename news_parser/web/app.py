@@ -2,6 +2,7 @@ import os
 import json
 import subprocess
 import logging
+import configparser
 from datetime import datetime
 from flask import Flask, jsonify, request, render_template, redirect, url_for, g
 from flask_cors import CORS
@@ -17,6 +18,33 @@ from news_parser.models import Article, init_db
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Load configuration from config.ini
+def load_config():
+    config = configparser.ConfigParser()
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.ini')
+    
+    if os.path.exists(config_path):
+        config.read(config_path)
+    else:
+        # Default configuration if config.ini doesn't exist
+        config['Database'] = {
+            'DATABASE_URL': 'postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres'
+        }
+        config['Scrapy'] = {
+            'SCRAPY_PROJECT_PATH': 'news_parser',
+            'PYTHON_PATH': 'python'
+        }
+        config['Web'] = {
+            'HOST': '0.0.0.0',
+            'PORT': '5001',
+            'DEBUG': 'True'
+        }
+    
+    return config
+
+# Load configuration
+config = load_config()
 
 # Create logs directory if it doesn't exist
 os.makedirs('logs', exist_ok=True)
@@ -37,7 +65,7 @@ CORS(app)
 
 # Initialize database connection
 try:
-    db_url = os.getenv('DATABASE_URL', 'postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres')
+    db_url = os.getenv('DATABASE_URL', config.get('Database', 'DATABASE_URL', fallback='postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres'))
     db = init_db(db_url)
     print("Successfully connected to the database!")
 except Exception as e:
@@ -88,9 +116,9 @@ def get_spider_names_by_sites(sites):
     reverse_map = {v: k for k, v in SPIDER_SITE_MAP.items()}
     return [reverse_map[site] for site in sites if site in reverse_map]
 
-# Get project paths from environment variables
+# Get project paths from configuration
 SCRAPY_PROJECT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-PYTHON_PATH = os.getenv('PYTHON_PATH', 'python')
+PYTHON_PATH = os.getenv('PYTHON_PATH', config.get('Scrapy', 'PYTHON_PATH', fallback='python'))
 
 def get_spider_status():
     """Get status of all spiders from database"""
@@ -431,6 +459,11 @@ def log_response_info(response):
     return response
 
 if __name__ == '__main__':
+    # Get web server configuration
+    host = config.get('Web', 'HOST', fallback='0.0.0.0')
+    port = int(config.get('Web', 'PORT', fallback='5001'))
+    debug = config.getboolean('Web', 'DEBUG', fallback=True)
+    
     # Start the Flask app
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host=host, port=port, debug=debug)
 
