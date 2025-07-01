@@ -17,14 +17,15 @@ class NewsArticle(scrapy.Item):
     # Individual fields for internal use
     source = scrapy.Field()
     url = scrapy.Field()
-    title = scrapy.Field()
+    header = scrapy.Field()
     published_at = scrapy.Field()  # Unix timestamp
     published_at_iso = scrapy.Field()  # ISO format date
     parsed_at = scrapy.Field()  # When we parsed the article
     author = scrapy.Field()   # Article author
-    summary = scrapy.Field()  # Article summary from RSS
     categories = scrapy.Field()  # List of categories/tags
     images = scrapy.Field()     # List of image URLs
+    created_at = scrapy.Field()
+    updated_at = scrapy.Field()
     
     # RIA.ru specific fields
     article_id = scrapy.Field()  # Unique article ID

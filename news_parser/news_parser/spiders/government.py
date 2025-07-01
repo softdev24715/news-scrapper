@@ -159,9 +159,12 @@ class GovernmentSpider(scrapy.Spider):
             except ValueError:
                 logging.warning(f"Could not parse datetime: {datetime_str}")
         
+        # Create article with required structure matching Note.md format
         article = NewsArticle()
         article['id'] = str(uuid.uuid4())
         article['text'] = article_text
+        
+        # Create metadata structure exactly as specified in Note.md
         article['metadata'] = {
             'source': 'government',
             'published_at': published_at,

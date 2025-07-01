@@ -148,18 +148,12 @@ class ForbesSpider(XMLFeedSpider):
             logging.warning(f"No text content found in article: {url}")
             return
             
-        # Get author if available
-        author = node.xpath('author/text()').get()
-        author_text = author.strip() if author else None
-            
-        # Get categories if available
-        categories = node.xpath('category/text()').getall()
-        categories_list = [cat.strip() for cat in categories] if categories else None
-            
-        # Create article with required structure
+        # Create article with required structure matching Note.md format
         article = NewsArticle()
         article['id'] = article_id
         article['text'] = '\n'.join(text_parts)
+        
+        # Create metadata structure exactly as specified in Note.md
         article['metadata'] = {
             'source': 'forbes',
             'published_at': published_at,
@@ -168,12 +162,6 @@ class ForbesSpider(XMLFeedSpider):
             'header': title,
             'parsed_at': int(datetime.now().timestamp())
         }
-        
-        # Add optional metadata if available
-        if author_text:
-            article['metadata']['author'] = author_text
-        if categories_list:
-            article['metadata']['categories'] = categories_list
         
         # Debug: Print found content
         logging.info(f"Processing article: {url} with ID: {article_id}")

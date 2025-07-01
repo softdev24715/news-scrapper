@@ -58,22 +58,12 @@ class KommersantSpider(SitemapSpider):
             published_at = int(current_time.timestamp())
             published_at_iso = current_time.isoformat()
         
-        # Get author if available
-        author = response.css('div.article__author::text').get()
-        author_text = author.strip() if author else None
-            
-        # Get categories/tags if available
-        categories = response.css('div.article__tags a::text').getall()
-        categories_list = [cat.strip() for cat in categories] if categories else None
-            
-        # Get images if available
-        images = response.css('div.article__image img::attr(src)').getall()
-        images_list = images if images else None
-            
-        # Create article with required structure
+        # Create article with required structure matching Note.md format
         article = NewsArticle()
         article['id'] = article_id
         article['text'] = '\n'.join(text_parts)
+        
+        # Create metadata structure exactly as specified in Note.md
         article['metadata'] = {
             'source': 'kommersant',
             'published_at': published_at,
@@ -82,14 +72,6 @@ class KommersantSpider(SitemapSpider):
             'header': title_text,
             'parsed_at': int(datetime.now().timestamp())
         }
-        
-        # Add optional metadata if available
-        if author_text:
-            article['metadata']['author'] = author_text
-        if categories_list:
-            article['metadata']['categories'] = categories_list
-        if images_list:
-            article['metadata']['images'] = images_list
         
         # Debug: Print found content
         logging.info(f"Title found: {title_text}")

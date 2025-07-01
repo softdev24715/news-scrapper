@@ -86,7 +86,7 @@ class MeduzaSimpleSpider(scrapy.Spider):
             
             logging.info(f"Found {len(items)} items in RSS feed")
             
-            for item in items[:10]:  # Limit to 10 articles for testing
+            for item in items:  # Limit to 10 articles for testing
                 title_elem = item.find('title')
                 link_elem = item.find('link')
                 desc_elem = item.find('description')
@@ -108,17 +108,19 @@ class MeduzaSimpleSpider(scrapy.Spider):
                     # Parse publication date
                     published_at = self.parse_publication_date(pub_date)
                     
-                    # Create article item with the exact structure from Note.md
+                    # Create article with required structure matching Note.md format
                     article = NewsArticle()
                     article['id'] = str(uuid.uuid4())
                     article['text'] = article_text
+                    
+                    # Create metadata structure exactly as specified in Note.md
                     article['metadata'] = {
                         'source': 'meduza',
                         'published_at': published_at,
                         'published_at_iso': datetime.fromtimestamp(published_at).isoformat(),
                         'url': url,
-                        'header': title,  # Use title as header
-                        'parsed_at': int(datetime.now().timestamp()),
+                        'header': title,
+                        'parsed_at': int(datetime.now().timestamp())
                     }
                     
                     logging.info(f"Successfully extracted article: {title}")

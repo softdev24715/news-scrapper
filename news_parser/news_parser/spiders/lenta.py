@@ -71,22 +71,12 @@ class LentaSpider(XMLFeedSpider):
                 if text:
                     article_text.append(text)
         
-        # Get author if available
-        author = soup.select_one('div.topic-body__authors')
-        author_text = author.get_text(strip=True) if author else None
-            
-        # Get categories/tags if available
-        categories = soup.select('div.topic-body__tags a')
-        categories_list = [cat.get_text(strip=True) for cat in categories] if categories else None
-            
-        # Get images if available
-        images = soup.select('div.topic-body__main-image img')
-        images_list = [img.get('src') for img in images if img.get('src')] if images else None
-            
-        # Create article with required structure
+        # Create article with required structure matching Note.md format
         article = NewsArticle()
         article['id'] = article_meta['id']
         article['text'] = '\n'.join(article_text)
+        
+        # Create metadata structure exactly as specified in Note.md
         article['metadata'] = {
             'source': article_meta['source'],
             'published_at': article_meta['published_at'],
@@ -95,13 +85,5 @@ class LentaSpider(XMLFeedSpider):
             'header': article_meta['header'],
             'parsed_at': int(datetime.now().timestamp())
         }
-        
-        # Add optional metadata if available
-        if author_text:
-            article['metadata']['author'] = author_text
-        if categories_list:
-            article['metadata']['categories'] = categories_list
-        if images_list:
-            article['metadata']['images'] = images_list
         
         yield article 

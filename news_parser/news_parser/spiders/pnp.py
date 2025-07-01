@@ -44,9 +44,8 @@ class PnpSpider(Spider):
         # Get today's date for filtering
         today = datetime.now()
         self.target_date = today.strftime('%Y-%m-%d')
-        # Format date for sitemap URL
-        self.sitemap_date = today.strftime('%Y/%m/%d')
-        self.start_urls = [f'https://www.pnp.ru/map/{self.sitemap_date}/']
+        # Use direct RSS feed URL
+        self.start_urls = ['https://www.pnp.ru/rss/index.xml']
         
         logging.info(f"Initializing PNP spider for date: {self.target_date}")
         logging.info(f"Current processed URLs count: {len(self.processed_urls)}")
@@ -55,7 +54,7 @@ class PnpSpider(Spider):
         for url in self.start_urls:
             yield scrapy.Request(
                 url=url,
-                callback=self.parse_sitemap,
+                callback=self.parse,
                 errback=self.handle_error,
                 dont_filter=True,
                 meta={
@@ -74,29 +73,100 @@ class PnpSpider(Spider):
             logging.debug(f"Response headers: {response.headers}")
             logging.debug(f"Response body: {response.text[:1000]}")
 
-    def parse_sitemap(self, response):
-        logging.debug(f"Parsing sitemap: {response.url}")
+    def parse(self, response):
+        logging.debug(f"Parsing RSS feed: {response.url}")
         logging.debug(f"Response status: {response.status}")
         
-        # Extract article links from the sitemap
-        # Look for links under the date heading
-        article_links = response.xpath('//h2[contains(text(), "ИЮНЬ")]/following-sibling::ul[1]/li/a/@href').getall()
+        # Parse RSS content directly since we're accessing the RSS feed
+        yield from self.parse_rss_content(response)
+
+    def parse_rss_content(self, response):
+        # Extract article URLs from RSS feed
+        # The PNP RSS feed appears to be in a text format rather than proper XML
+        # Let's try to extract URLs directly from the text content
         
-        if not article_links:
-            logging.warning("No article links found in sitemap")
-            # Try alternative selector
-            article_links = response.css('ul li a::attr(href)').getall()
+        # Debug: Log the first part of the response content
+        logging.debug(f"RSS feed content preview: {response.text[:1000]}...")
         
-        logging.info(f"Found {len(article_links)} article links in sitemap")
+        # Skip XML parsing and go directly to text parsing since the content is in text format
+        logging.info("Skipping XML parsing, using text-based parsing directly")
+        yield from self.parse_text_rss(response)
+
+    def parse_text_rss(self, response):
+        """Parse the text-based RSS feed format that PNP uses"""
+        import re
         
-        for link in article_links:
-            if link in self.processed_urls:
-                logging.debug(f"Skipping already processed URL: {link}")
+        # Get the text content
+        text_content = response.text
+        
+        logging.debug(f"Text RSS content preview: {text_content[:1000]}...")
+        
+        # Extract URLs using regex pattern for PNP article URLs
+        url_pattern = r'https://www\.pnp\.ru/[^/\s]+/[^/\s]+\.html'
+        urls = re.findall(url_pattern, text_content)
+        
+        logging.info(f"Found {len(urls)} URLs using regex pattern")
+        
+        # Extract dates using regex pattern for RSS dates
+        date_pattern = r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} \+\d{4}'
+        dates = re.findall(date_pattern, text_content)
+        
+        logging.info(f"Found {len(dates)} dates using regex pattern")
+        
+        # Create a mapping of URLs to dates by finding the closest date before each URL
+        url_date_mapping = {}
+        
+        # Split the text into lines to process sequentially
+        lines = text_content.split('\n')
+        current_date = None
+        
+        for line in lines:
+            # Check if line contains a date
+            date_match = re.search(date_pattern, line)
+            if date_match:
+                try:
+                    current_date = datetime.strptime(date_match.group(0), '%a, %d %b %Y %H:%M:%S %z')
+                    logging.debug(f"Found date: {current_date}")
+                except Exception as e:
+                    logging.warning(f"Error parsing date {date_match.group(0)}: {e}")
+                    continue
+            
+            # Check if line contains a URL
+            url_match = re.search(url_pattern, line)
+            if url_match and current_date:
+                url = url_match.group(0)
+                url_date_mapping[url] = current_date
+                logging.debug(f"Mapped URL {url} to date {current_date}")
+        
+        # Process URLs with date filtering
+        processed_count = 0
+        for url in urls:
+            if url in self.processed_urls:
+                logging.debug(f"Skipping already processed URL: {url}")
+                continue
+            
+            # Check if we have a date for this URL
+            if url in url_date_mapping:
+                dt = url_date_mapping[url]
+                if dt.strftime('%Y-%m-%d') != self.target_date:
+                    logging.debug(f"Article not from today ({dt.strftime('%Y-%m-%d')}): {url}")
+                    continue
+                else:
+                    logging.info(f"Article is from today: {url}")
+            else:
+                # If no date found, assume it's from today for now
+                logging.debug(f"No date found for URL, assuming today: {url}")
+            
+            # Additional validation to ensure it's a proper article URL
+            if not url or not url.startswith('http') or 'javascript:' in url:
+                logging.debug(f"Skipping invalid URL: {url}")
                 continue
                 
-            self.processed_urls.add(link)
+            self.processed_urls.add(url)
+            processed_count += 1
+            logging.info(f"Processing article URL: {url}")
             yield scrapy.Request(
-                url=link,
+                url=url,
                 callback=self.parse_article,
                 errback=self.handle_error,
                 meta={
@@ -106,9 +176,22 @@ class PnpSpider(Spider):
                     'max_retry_times': 5
                 }
             )
+        
+        logging.info(f"Processed {processed_count} URLs from text RSS feed")
 
     def parse_article(self, response):
         logging.debug(f"Parsing article: {response.url}")
+        
+        # Check if this is actually an article page (not a section page)
+        if not response.url:
+            logging.debug(f"Skipping empty URL")
+            return
+        
+        # Additional validation - check if URL looks like an article
+        url_parts = response.url.split('/')
+        if len(url_parts) <= 4 or url_parts[-1] == '':
+            logging.debug(f"Skipping section page URL: {response.url}")
+            return
         
         # Get title - updated selector
         title = response.css('article h1::text').get()
@@ -181,18 +264,12 @@ class PnpSpider(Spider):
             logging.warning(f"No content found for URL: {response.url}")
             return
             
-        # Get author
-        author = response.css('a.article__author::text').get()
-        author_text = author.strip() if author else None
-            
-        # Get category
-        category = response.css('a.article__category::text').get()
-        category_text = category.strip() if category else None
-            
-        # Create article with required structure
+        # Create article with required structure matching Note.md format
         article = NewsArticle()
         article['id'] = str(uuid.uuid4())
         article['text'] = '\n'.join(content_parts)
+        
+        # Create metadata structure exactly as specified in Note.md
         article['metadata'] = {
             'source': 'pnp',
             'published_at': published_at,
@@ -201,12 +278,6 @@ class PnpSpider(Spider):
             'header': title,
             'parsed_at': int(datetime.now().timestamp())
         }
-        
-        # Add optional metadata if available
-        if author_text:
-            article['metadata']['author'] = author_text
-        if category_text:
-            article['metadata']['categories'] = [category_text]
         
         # Debug: Print found content
         logging.info(f"Processing article: {response.url}")

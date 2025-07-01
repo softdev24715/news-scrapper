@@ -143,10 +143,12 @@ class GraininfoSpider(Spider):
                 category = item.find('category')
                 category_text = category.text.strip() if category is not None and category.text else None
                     
-                # Create article with required structure
+                # Create article with required structure matching Note.md format
                 article = NewsArticle()
                 article['id'] = str(uuid.uuid4())
                 article['text'] = text
+                
+                # Create metadata structure exactly as specified in Note.md
                 article['metadata'] = {
                     'source': 'graininfo',
                     'published_at': published_at,
@@ -155,12 +157,6 @@ class GraininfoSpider(Spider):
                     'header': title.text,
                     'parsed_at': int(datetime.now().timestamp())
                 }
-                
-                # Add optional metadata if available
-                if author_text:
-                    article['metadata']['author'] = author_text
-                if category_text:
-                    article['metadata']['categories'] = [category_text]
                 
                 # Debug: Print found content
                 logging.info(f"Processing article: {url}")
@@ -234,10 +230,12 @@ class GraininfoSpider(Spider):
                 category = item.find('category')
                 category_text = category.text.strip() if category and category.text else None
                 
-                # Create article
+                # Create article with required structure matching Note.md format
                 article = NewsArticle()
                 article['id'] = str(uuid.uuid4())
                 article['text'] = text
+                
+                # Create metadata structure exactly as specified in Note.md
                 article['metadata'] = {
                     'source': 'graininfo',
                     'published_at': published_at,
@@ -246,11 +244,6 @@ class GraininfoSpider(Spider):
                     'header': title.text,
                     'parsed_at': int(datetime.now().timestamp())
                 }
-                
-                if author_text:
-                    article['metadata']['author'] = author_text
-                if category_text:
-                    article['metadata']['categories'] = [category_text]
                 
                 logging.info(f"Processing article: {url}")
                 logging.info(f"Title found: {title.text}")

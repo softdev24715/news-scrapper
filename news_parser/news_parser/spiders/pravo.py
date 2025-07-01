@@ -16,7 +16,7 @@ class PravoSpider(scrapy.Spider):
 
     def parse(self, response):
         # today = date.today() - timedelta(days=1)
-        today = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        today = datetime.now().strftime('%Y-%m-%d')
         self.logger.info(f"Looking for documents from: {today}")
 
         root = ET.fromstring(response.text)
@@ -39,6 +39,11 @@ class PravoSpider(scrapy.Spider):
             
             # Convert publication date to timestamp
             published_at = self.parse_date(pub_date) if pub_date else None
+            
+            # Compose text content from title and description
+            text_content = title
+            if description:
+                text_content = f"{title}\n\n{description}"
             
             # Compose structured item with exact database schema fields
             law_metadata = {
@@ -67,7 +72,7 @@ class PravoSpider(scrapy.Spider):
 
             yield {
                 'id': str(uuid.uuid4()),
-                'text': title,
+                'text': text_content,
                 'lawMetadata': law_metadata
             }
 

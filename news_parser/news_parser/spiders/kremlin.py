@@ -97,9 +97,12 @@ class KremlinSpider(scrapy.Spider):
         paragraphs = content_div.find_all('p') if content_div else []
         article_text = '\n'.join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
         logging.info(f"Extracted text length: {len(article_text)} characters")
+        # Create article with required structure matching Note.md format
         article = NewsArticle()
         article['id'] = str(uuid.uuid4())
         article['text'] = article_text
+        
+        # Create metadata structure exactly as specified in Note.md
         article['metadata'] = {
             'source': 'kremlin',
             'published_at': int(datetime.now().timestamp()),
@@ -108,5 +111,6 @@ class KremlinSpider(scrapy.Spider):
             'header': title,
             'parsed_at': int(datetime.now().timestamp())
         }
+        
         logging.info(f"Yielding article: {response.url} with ID: {article['id']}")
         yield article 

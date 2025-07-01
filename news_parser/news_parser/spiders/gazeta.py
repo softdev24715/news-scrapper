@@ -91,9 +91,12 @@ class GazetaSpider(scrapy.Spider):
         paragraphs = soup.find_all('p')
         article_text = '\n'.join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
         
+        # Create article with required structure matching Note.md format
         article = NewsArticle()
         article['id'] = str(uuid.uuid4())
         article['text'] = article_text
+        
+        # Create metadata structure exactly as specified in Note.md
         article['metadata'] = {
             'source': 'gazeta',
             'published_at': int(datetime.now().timestamp()),
@@ -102,5 +105,6 @@ class GazetaSpider(scrapy.Spider):
             'header': title,
             'parsed_at': int(datetime.now().timestamp())
         }
+        
         logging.info(f"Yielding article: {url} with ID: {article['id']}")
         yield article 

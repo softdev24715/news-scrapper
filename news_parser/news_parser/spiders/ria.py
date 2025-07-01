@@ -62,10 +62,12 @@ class RIASpider(SitemapSpider):
             published_at = current_time
             published_at_iso = datetime.fromtimestamp(current_time).isoformat() + 'Z'
         
-        # Create article with required structure
+        # Create article with required structure matching Note.md format
         article = NewsArticle()
         article['id'] = article_id
         article['text'] = article_text
+        
+        # Create metadata structure exactly as specified in Note.md
         article['metadata'] = {
             'source': 'ria.ru',
             'published_at': published_at,

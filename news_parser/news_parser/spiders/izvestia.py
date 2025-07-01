@@ -168,14 +168,6 @@ class IzvestiaSpider(scrapy.Spider):
             published_at = int(current_time.timestamp())
             published_at_iso = current_time.isoformat()
 
-        # Get author
-        author_tag = soup.select_one('a.author-name__name')
-        author = author_tag.get_text(strip=True) if author_tag else None
-        
-        # Get summary from meta description
-        summary_tag = soup.select_one('meta[name="description"]')
-        summary = summary_tag['content'] if summary_tag and summary_tag.has_attr('content') else None
-
         # Get article text
         article_text = []
         content_containers = [
@@ -196,19 +188,19 @@ class IzvestiaSpider(scrapy.Spider):
                         article_text.append(text)
                 break
         
-        # Create article item
+        # Create article with required structure matching Note.md format
         article = NewsArticle()
         article['id'] = article_id
         article['text'] = '\n'.join(article_text)
+        
+        # Create metadata structure exactly as specified in Note.md
         article['metadata'] = {
             'source': source,
             'published_at': published_at,
             'published_at_iso': published_at_iso,
             'url': url,
             'header': title,
-            'parsed_at': int(datetime.now().timestamp()),
-            'author': author,
-            'summary': summary
+            'parsed_at': int(datetime.now().timestamp())
         }
         
         yield article 

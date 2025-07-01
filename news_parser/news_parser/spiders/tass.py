@@ -77,14 +77,12 @@ class TASSSpider(XMLFeedSpider):
         paragraphs = soup.find_all('p')
         article_text = '\n'.join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
         
-        # Get category
-        category = node.xpath('category/text()').get()
-        categories_list = [category] if category else None
-        
-        # Create article with required structure
+        # Create article with required structure matching Note.md format
         article = NewsArticle()
         article['id'] = article_id
         article['text'] = article_text
+        
+        # Create metadata structure exactly as specified in Note.md
         article['metadata'] = {
             'source': 'tass',
             'published_at': int(dt.timestamp()),
@@ -93,10 +91,6 @@ class TASSSpider(XMLFeedSpider):
             'header': node.xpath('title/text()').get(),
             'parsed_at': int(datetime.now().timestamp())
         }
-        
-        # Add optional metadata if available
-        if categories_list:
-            article['metadata']['categories'] = categories_list
         
         logging.info(f"Yielding article: {url} with ID: {article_id}")
         yield article
