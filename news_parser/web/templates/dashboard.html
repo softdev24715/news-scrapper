@@ -147,6 +147,7 @@
     <script>
         let runningSpiders = new Set();
         let lastStatus = {};
+        let buttonGracePeriods = {}; // Track grace periods for buttons
 
         // Mapping from spider name to site URL
         const spiderSiteMap = {
@@ -177,70 +178,78 @@
             'eaeu': 'https://docs.eaeunion.org/',
         };
 
+        // Set grace period for a button (1 minute)
+        function setButtonGracePeriod(spiderName, action) {
+            buttonGracePeriods[spiderName] = {
+                action: action,
+                startTime: Date.now(),
+                duration: 60000 // 1 minute
+            };
+        }
+
+        // Check if button is in grace period
+        function isInGracePeriod(spiderName) {
+            const gracePeriod = buttonGracePeriods[spiderName];
+            if (!gracePeriod) return false;
+            
+            const elapsed = Date.now() - gracePeriod.startTime;
+            if (elapsed > gracePeriod.duration) {
+                // Grace period expired, remove it
+                delete buttonGracePeriods[spiderName];
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Clear grace period for a spider
+        function clearGracePeriod(spiderName) {
+            delete buttonGracePeriods[spiderName];
+        }
+
         // Fetch and display spider status
         function updateSpiderStatus() {
             fetch('/api/scraper/status')
                 .then(response => response.json())
                 .then(data => {
                     const table = document.getElementById('spiderTable');
-                    table.innerHTML = '';
                     
-                    data.spiders.forEach((spider, idx) => {
-                        const row = document.createElement('tr');
-                        const isRunning = (spider.status === 'running');
-                        const isScheduled = (spider.status === 'scheduled');
-                        const isDisabled = (spider.status === 'disabled');
-                        const isError = (spider.status === 'error');
-
-                        // Update running spiders set based on actual status
-                        if (isRunning) {
+                    // Check if table is empty (first load)
+                    const isFirstLoad = table.children.length === 0;
+                    
+                    if (isFirstLoad) {
+                        // First load - create all rows
+                        table.innerHTML = '';
+                        data.spiders.forEach((spider, idx) => {
+                            const row = createSpiderRow(spider, idx);
+                            table.appendChild(row);
+                        });
+                    } else {
+                        // Update existing rows - preserve button states
+                        data.spiders.forEach((spider, idx) => {
+                            const existingRow = table.children[idx];
+                            if (existingRow) {
+                                updateSpiderRow(existingRow, spider, idx);
+                            } else {
+                                // New spider added
+                                const row = createSpiderRow(spider, idx);
+                                table.appendChild(row);
+                            }
+                        });
+                        
+                        // Remove extra rows if spiders were removed
+                        while (table.children.length > data.spiders.length) {
+                            table.removeChild(table.lastChild);
+                        }
+                    }
+                    
+                    // Update running spiders set based on actual status
+                    data.spiders.forEach(spider => {
+                        if (spider.status === 'running') {
                             runningSpiders.add(spider.name);
                         } else {
                             runningSpiders.delete(spider.name);
                         }
-
-                        // Map backend status to user-friendly label
-                        let statusLabel = '';
-                        let statusClass = '';
-                        if (isRunning) {
-                            statusLabel = 'Running';
-                            statusClass = 'status-running';
-                        } else if (isScheduled) {
-                            statusLabel = 'Scheduled';
-                            statusClass = 'status-scheduled';
-                        } else if (isDisabled) {
-                            statusLabel = 'Disabled';
-                            statusClass = 'status-disabled';
-                        } else if (isError) {
-                            statusLabel = 'Error';
-                            statusClass = 'status-error';
-                        } else {
-                            statusLabel = spider.status;
-                            statusClass = '';
-                        }
-
-                        // Determine button states based on spider status
-                        const startButtonDisabled = isRunning || isScheduled;
-                        const stopButtonDisabled = isDisabled;
-                        const runButtonDisabled = isRunning;
-                        // Show spinning if spider is running (based on actual status)
-                        const runButtonSpinning = isRunning;
-
-                        row.innerHTML = `
-                            <td>${idx + 1}</td>
-                            <td><a href="${spiderSiteMap[spider.name] || '#'}" target="_blank">${spiderSiteMap[spider.name] || spider.name}</a></td>
-                            <td class="${statusClass}">${statusLabel}</td>
-                            <td>${spider.last_update ? new Date(spider.last_update).toLocaleString() : ''}</td>
-                            <td>
-                                <button class="btn btn-sm btn-success" onclick="startSpider('${spider.name}')" 
-                                    ${startButtonDisabled ? 'disabled' : ''}>Start</button>
-                                <button class="btn btn-sm btn-danger" onclick="stopSpider('${spider.name}')" 
-                                    ${stopButtonDisabled ? 'disabled' : ''}>Stop</button>
-                                <button class="btn btn-sm btn-primary${runButtonSpinning ? ' btn-loading' : ''}" onclick="runSpider('${spider.name}')" 
-                                    id="run-${spider.name}" ${runButtonDisabled ? 'disabled' : ''}>Run</button>
-                            </td>
-                        `;
-                        table.appendChild(row);
                     });
                     
                     // Update last status for comparison
@@ -252,9 +261,135 @@
                 .catch(error => console.error('Error:', error));
         }
 
+        // Create a new spider row
+        function createSpiderRow(spider, idx) {
+            const row = document.createElement('tr');
+            const isRunning = (spider.status === 'running');
+            const isScheduled = (spider.status === 'scheduled');
+            const isDisabled = (spider.status === 'disabled');
+            const isError = (spider.status === 'error');
+
+            // Map backend status to user-friendly label
+            let statusLabel = '';
+            let statusClass = '';
+            if (isRunning) {
+                statusLabel = 'Running';
+                statusClass = 'status-running';
+            } else if (isScheduled) {
+                statusLabel = 'Scheduled';
+                statusClass = 'status-scheduled';
+            } else if (isDisabled) {
+                statusLabel = 'Disabled';
+                statusClass = 'status-disabled';
+            } else if (isError) {
+                statusLabel = 'Error';
+                statusClass = 'status-error';
+            } else {
+                statusLabel = spider.status;
+                statusClass = '';
+            }
+
+            // Determine button states based on spider status
+            const startButtonDisabled = isRunning || isScheduled;
+            const stopButtonDisabled = isDisabled;
+            const runButtonDisabled = isRunning;
+            // Show spinning if spider is running (based on actual status)
+            const runButtonSpinning = isRunning;
+
+            row.innerHTML = `
+                <td>${idx + 1}</td>
+                <td><a href="${spiderSiteMap[spider.name] || '#'}" target="_blank">${spiderSiteMap[spider.name] || spider.name}</a></td>
+                <td class="${statusClass}">${statusLabel}</td>
+                <td>${spider.last_update ? new Date(spider.last_update).toLocaleString() : ''}</td>
+                <td>
+                    <button class="btn btn-sm btn-success" onclick="startSpider('${spider.name}')" 
+                        ${startButtonDisabled ? 'disabled' : ''}>Start</button>
+                    <button class="btn btn-sm btn-danger" onclick="stopSpider('${spider.name}')" 
+                        ${stopButtonDisabled ? 'disabled' : ''}>Stop</button>
+                    <button class="btn btn-sm btn-primary${runButtonSpinning ? ' btn-loading' : ''}" onclick="runSpider('${spider.name}')" 
+                        id="run-${spider.name}" ${runButtonDisabled ? 'disabled' : ''}>Run</button>
+                </td>
+            `;
+            return row;
+        }
+
+        // Update existing spider row (preserve button states)
+        function updateSpiderRow(row, spider, idx) {
+            const isRunning = (spider.status === 'running');
+            const isScheduled = (spider.status === 'scheduled');
+            const isDisabled = (spider.status === 'disabled');
+            const isError = (spider.status === 'error');
+            const inGracePeriod = isInGracePeriod(spider.name);
+
+            // Map backend status to user-friendly label
+            let statusLabel = '';
+            let statusClass = '';
+            if (isRunning) {
+                statusLabel = 'Running';
+                statusClass = 'status-running';
+            } else if (isScheduled) {
+                statusLabel = 'Scheduled';
+                statusClass = 'status-scheduled';
+            } else if (isDisabled) {
+                statusLabel = 'Disabled';
+                statusClass = 'status-disabled';
+            } else if (isError) {
+                statusLabel = 'Error';
+                statusClass = 'status-error';
+            } else {
+                statusLabel = spider.status;
+                statusClass = '';
+            }
+
+            // Update only the status and last_update cells, preserve button states
+            const cells = row.children;
+            cells[0].textContent = idx + 1; // Number
+            cells[2].textContent = statusLabel; // Status
+            cells[2].className = statusClass;
+            cells[3].textContent = spider.last_update ? new Date(spider.last_update).toLocaleString() : ''; // Last update
+            
+            // Update button states but preserve existing classes (like btn-loading)
+            const startButton = cells[4].children[0];
+            const stopButton = cells[4].children[1];
+            const runButton = cells[4].children[2];
+            
+            // Start button
+            startButton.disabled = isRunning || isScheduled;
+            
+            // Stop button
+            stopButton.disabled = isDisabled;
+            
+            // Run button - respect grace period
+            if (inGracePeriod) {
+                // During grace period, preserve the button state set by user action
+                const gracePeriod = buttonGracePeriods[spider.name];
+                if (gracePeriod.action === 'run') {
+                    // User clicked Run - keep disabled and spinning
+                    runButton.disabled = true;
+                    runButton.classList.add('btn-loading');
+                }
+            } else {
+                // No grace period - update based on actual status
+                runButton.disabled = isRunning;
+                
+                // Only update spinning class if not manually set
+                const wasManuallySpinning = runButton.classList.contains('btn-loading') && !isRunning;
+                if (!wasManuallySpinning) {
+                    if (isRunning) {
+                        runButton.classList.add('btn-loading');
+                    } else {
+                        runButton.classList.remove('btn-loading');
+                    }
+                }
+            }
+        }
+
         // Run specific spider
         function runSpider(spiderName) {
             const runButton = document.getElementById(`run-${spiderName}`);
+            
+            // Set grace period for 1 minute to preserve button state
+            setButtonGracePeriod(spiderName, 'run');
             
             // Immediately show spinning and disable button for instant feedback
             runButton.classList.add('btn-loading');
@@ -281,7 +416,8 @@
                                 if (spider && spider.status !== 'running') {
                                     clearInterval(checkCompletion);
                                     runningSpiders.delete(spiderName);
-                                    // Remove spinning and re-enable button when spider completes
+                                    // Clear grace period and remove spinning when spider completes
+                                    clearGracePeriod(spiderName);
                                     runButton.classList.remove('btn-loading');
                                     runButton.disabled = false;
                                     updateSpiderStatus();
@@ -296,13 +432,15 @@
                     setTimeout(() => {
                         clearInterval(checkCompletion);
                         runningSpiders.delete(spiderName);
-                        // Remove spinning and re-enable button after timeout
+                        // Clear grace period and remove spinning after timeout
+                        clearGracePeriod(spiderName);
                         runButton.classList.remove('btn-loading');
                         runButton.disabled = false;
                         updateSpiderStatus();
                     }, 600000); // 10 minutes
                 } else {
-                    // If request failed, remove spinning immediately and re-enable button
+                    // If request failed, clear grace period and remove spinning immediately
+                    clearGracePeriod(spiderName);
                     runButton.classList.remove('btn-loading');
                     runButton.disabled = false;
                     runningSpiders.delete(spiderName);
@@ -311,7 +449,8 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                // Remove spinning and re-enable button on error
+                // Clear grace period and remove spinning on error
+                clearGracePeriod(spiderName);
                 runButton.classList.remove('btn-loading');
                 runButton.disabled = false;
                 runningSpiders.delete(spiderName);
@@ -388,6 +527,15 @@
             const runAllButton = document.getElementById('runAllBtn');
             const spinnerOverlay = document.getElementById('spinnerOverlay');
             
+            // Set grace period for all spiders for 1 minute
+            fetch('/api/scraper/status')
+                .then(response => response.json())
+                .then(data => {
+                    data.spiders.forEach(spider => {
+                        setButtonGracePeriod(spider.name, 'run');
+                    });
+                });
+            
             // Immediately show spinning and disable button for instant feedback
             runAllButton.classList.add('btn-loading');
             runAllButton.disabled = true;
@@ -414,7 +562,10 @@
                                 );
                                 if (allCompleted) {
                                     clearInterval(checkStatus);
-                                    // Remove spinning and re-enable button when all spiders complete
+                                    // Clear all grace periods and remove spinning when all spiders complete
+                                    statusData.spiders.forEach(spider => {
+                                        clearGracePeriod(spider.name);
+                                    });
                                     runAllButton.classList.remove('btn-loading');
                                     runAllButton.disabled = false;
                                     spinnerOverlay.style.display = 'none';
@@ -429,14 +580,28 @@
                     // Fallback timeout - if spiders take too long, stop spinning after 10 minutes
                     setTimeout(() => {
                         clearInterval(checkStatus);
-                        // Remove spinning and re-enable button after timeout
+                        // Clear all grace periods and remove spinning after timeout
+                        fetch('/api/scraper/status')
+                            .then(response => response.json())
+                            .then(statusData => {
+                                statusData.spiders.forEach(spider => {
+                                    clearGracePeriod(spider.name);
+                                });
+                            });
                         runAllButton.classList.remove('btn-loading');
                         runAllButton.disabled = false;
                         spinnerOverlay.style.display = 'none';
                         updateSpiderStatus();
                     }, 600000); // 10 minutes fallback
                 } else {
-                    // If request failed, remove spinning immediately and re-enable button
+                    // If request failed, clear all grace periods and remove spinning immediately
+                    fetch('/api/scraper/status')
+                        .then(response => response.json())
+                        .then(statusData => {
+                            statusData.spiders.forEach(spider => {
+                                clearGracePeriod(spider.name);
+                            });
+                        });
                     runAllButton.classList.remove('btn-loading');
                     runAllButton.disabled = false;
                     spinnerOverlay.style.display = 'none';
@@ -445,7 +610,14 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                // Remove spinning and re-enable button on error
+                // Clear all grace periods and remove spinning on error
+                fetch('/api/scraper/status')
+                    .then(response => response.json())
+                    .then(statusData => {
+                        statusData.spiders.forEach(spider => {
+                            clearGracePeriod(spider.name);
+                        });
+                    });
                 runAllButton.classList.remove('btn-loading');
                 runAllButton.disabled = false;
                 spinnerOverlay.style.display = 'none';
