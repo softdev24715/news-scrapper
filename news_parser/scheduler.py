@@ -99,13 +99,13 @@ def run_spider_with_monitoring(spider_name):
         # Wait for completion with timeout
         try:
             process.wait(timeout=SPIDER_TIMEOUT)
-    now = datetime.utcnow()
+            now = datetime.utcnow()
             
             if process.returncode == 0:
-        update_spider_status(spider_name, 'scheduled', now)
+                update_spider_status(spider_name, 'scheduled', now)
                 logger.info(f"Spider {spider_name} finished successfully.")
-    else:
-        update_spider_status(spider_name, 'error', now)
+            else:
+                update_spider_status(spider_name, 'error', now)
                 logger.error(f"Spider {spider_name} failed with return code {process.returncode}.")
                 
         except subprocess.TimeoutExpired:

@@ -28,9 +28,9 @@ class EaeuSpider(scrapy.Spider):
         
         logging.info(f"Parsing main page: {response.url}")
         
-        # Save the page HTML for debugging
-        with open('eaeu_main_page.html', 'w', encoding='utf-8') as f:
-            f.write(response.text)
+        # # Save the page HTML for debugging
+        # with open('eaeu_main_page.html', 'w', encoding='utf-8') as f:
+        #     f.write(response.text)
         logging.info("Saved main page HTML to eaeu_main_page.html")
         
         # Look for document links - try different patterns

@@ -1,7 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, JSON, Text
+from sqlalchemy import create_engine, Column, String, JSON, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
 
 Base = declarative_base()
 
@@ -10,33 +9,13 @@ class Article(Base):
 
     id = Column(String, primary_key=True)  # UUID from scraper
     text = Column(Text, nullable=False)
-    source = Column(String, nullable=False)
-    url = Column(String, unique=True, nullable=False)
-    header = Column(String, nullable=False)
-    published_at = Column(Integer, nullable=False)  # Unix timestamp
-    published_at_iso = Column(DateTime, nullable=False)
-    parsed_at = Column(Integer, nullable=False)
-    author = Column(String)
-    categories = Column(JSON)  # Store as JSON array
-    images = Column(JSON)  # Store as JSON array
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    article_metadata = Column(JSON, nullable=False)  # All metadata as JSON (renamed from 'metadata')
 
     def to_dict(self):
         return {
             'id': self.id,
             'text': self.text,
-            'source': self.source,
-            'url': self.url,
-            'header': self.header,
-            'published_at': self.published_at,
-            'published_at_iso': self.published_at_iso.isoformat(),
-            'parsed_at': self.parsed_at,
-            'author': self.author,
-            'categories': self.categories,
-            'images': self.images,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'metadata': self.article_metadata  # Keep original name in dict output
         }
 
 class LegalDocument(Base):
@@ -44,43 +23,13 @@ class LegalDocument(Base):
 
     id = Column(String, primary_key=True)  # UUID from scraper
     text = Column(Text, nullable=False)
-    original_id = Column(String)  # Original document ID from source (e.g., "158")
-    doc_kind = Column(String)  # Type of document (act, bill, etc.)
-    title = Column(Text)  # Document title (e.g., "Решение ВЕЭС № 3")
-    source = Column(String, nullable=False)  # Source website (e.g., "docs.eaeunion.org")
-    url = Column(String, unique=True, nullable=False)  # Document URL
-    published_at = Column(Integer)  # Unix timestamp
-    parsed_at = Column(Integer)  # Unix timestamp
-    jurisdiction = Column(String)  # Legal jurisdiction (EAEU, RU, etc.)
-    language = Column(String)  # Document language (ru, en, etc.)
-    stage = Column(Text)  # Document stage/status
-    discussion_period = Column(JSON)  # Discussion period info (start/end dates)
-    explanatory_note = Column(JSON)  # Explanatory note info
-    summary_reports = Column(JSON)  # Summary reports
-    comment_stats = Column(JSON)  # Comment statistics
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    law_metadata = Column(JSON, nullable=False)  # All law metadata as JSON
 
     def to_dict(self):
         return {
             'id': self.id,
             'text': self.text,
-            'original_id': self.original_id,
-            'doc_kind': self.doc_kind,
-            'title': self.title,
-            'source': self.source,
-            'url': self.url,
-            'published_at': self.published_at,
-            'parsed_at': self.parsed_at,
-            'jurisdiction': self.jurisdiction,
-            'language': self.language,
-            'stage': self.stage,
-            'discussion_period': self.discussion_period,
-            'explanatory_note': self.explanatory_note,
-            'summary_reports': self.summary_reports,
-            'comment_stats': self.comment_stats,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'lawMetadata': self.law_metadata
         }
 
 def init_db(db_url):

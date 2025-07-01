@@ -22,7 +22,7 @@ class NewsParserPipeline:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         self.items = []
-        self.processed_ids = set()  # Track processed article IDs
+        self.processed_urls = set()  # Track processed URLs to avoid duplicates
         self.filename = None  # Store filename for the current run
         logging.info("Initializing NewsParserPipeline")
 
@@ -30,16 +30,27 @@ class NewsParserPipeline:
         # Convert item to dict if it isn't already
         item_dict = dict(item)
         
-        # Check if we've already processed this article
-        article_id = item_dict.get('id')
-        if article_id in self.processed_ids:
-            logging.warning(f"Duplicate article ID found: {article_id}")
+        # Create unique key based on source + url (not the generated UUID)
+        if 'lawMetadata' in item_dict:
+            # Legal document
+            source = item_dict['lawMetadata'].get('source', '')
+            url = item_dict['lawMetadata'].get('url', '')
+        else:
+            # News article
+            source = item_dict['metadata'].get('source', '')
+            url = item_dict['metadata'].get('url', '')
+        
+        unique_key = f"{source}:{url}"
+        
+        # Check if we've already processed this URL
+        if unique_key in self.processed_urls:
+            logging.warning(f"Duplicate URL found: {unique_key}")
             return item
             
         # Add to processed set and items list
-        self.processed_ids.add(article_id)
+        self.processed_urls.add(unique_key)
         self.items.append(item_dict)
-        logging.info(f"Processing article: {article_id} from {spider.name} (Total items: {len(self.items)})")
+        logging.info(f"Processing item: {unique_key} from {spider.name} (Total items: {len(self.items)})")
         
         return item
 
@@ -62,11 +73,11 @@ class NewsParserPipeline:
             json.dump(self.items, f, ensure_ascii=False, indent=2)
         
         logging.info(f"Saved {len(self.items)} articles to {self.filename}")
-        logging.info(f"Total processed IDs: {len(self.processed_ids)}")
+        logging.info(f"Total processed URLs: {len(self.processed_urls)}")
         
         # Reset everything for next run
         self.items = []
-        self.processed_ids = set()
+        self.processed_urls = set()
         self.filename = None  # Clear the filename
 
 class PostgreSQLPipeline:
@@ -130,7 +141,14 @@ class PostgreSQLPipeline:
             
         except IntegrityError as e:
             self.session.rollback()
-            logging.warning(f"Duplicate item found: {item_dict['id']}")
+            # Extract source and URL for better error logging
+            if 'lawMetadata' in item_dict:
+                source = item_dict['lawMetadata'].get('source', '')
+                url = item_dict['lawMetadata'].get('url', '')
+            else:
+                source = item_dict['metadata'].get('source', '')
+                url = item_dict['metadata'].get('url', '')
+            logging.warning(f"Duplicate item found: {source}:{url}")
         except Exception as e:
             self.session.rollback()
             logging.error(f"Error saving item to database: {str(e)}")
@@ -138,20 +156,12 @@ class PostgreSQLPipeline:
         return item
 
     def _save_news_article(self, item_dict):
-        """Save a news article to the articles table"""
+        """Save a news article to the articles table - matches exact spider structure"""
         try:
             article = Article(
                 id=item_dict['id'],
                 text=item_dict['text'],
-                source=item_dict['source'],
-                url=item_dict['url'],
-                header=item_dict['header'],
-                published_at=item_dict['published_at'],
-                published_at_iso=datetime.fromisoformat(item_dict['published_at_iso'].replace('Z', '+00:00')),
-                parsed_at=item_dict['parsed_at'],
-                author=item_dict.get('author'),
-                categories=item_dict.get('categories'),
-                images=item_dict.get('images')
+                article_metadata=item_dict['metadata']
             )
             
             self.session.add(article)
@@ -163,31 +173,21 @@ class PostgreSQLPipeline:
             raise
 
     def _save_legal_document(self, item_dict):
-        """Save a legal document to the legal_documents table"""
-        law_metadata = item_dict['lawMetadata']
-        
-        legal_doc = LegalDocument(
-            id=item_dict['id'],
-            text=item_dict['text'],
-            original_id=law_metadata.get('originalId'),
-            doc_kind=law_metadata.get('docKind'),
-            title=law_metadata.get('title'),
-            source=law_metadata.get('source'),
-            url=law_metadata.get('url'),
-            published_at=law_metadata.get('publishedAt'),
-            parsed_at=law_metadata.get('parsedAt'),
-            jurisdiction=law_metadata.get('jurisdiction'),
-            language=law_metadata.get('language'),
-            stage=law_metadata.get('stage'),
-            discussion_period=law_metadata.get('discussionPeriod'),
-            explanatory_note=law_metadata.get('explanatoryNote'),
-            summary_reports=law_metadata.get('summaryReports'),
-            comment_stats=law_metadata.get('commentStats')
-        )
-        
-        self.session.add(legal_doc)
-        self.session.commit()
-        logging.info(f"Saved legal document {legal_doc.id} to database")
+        """Save a legal document to the legal_documents table - matches exact spider structure"""
+        try:
+            legal_doc = LegalDocument(
+                id=item_dict['id'],
+                text=item_dict['text'],
+                law_metadata=item_dict['lawMetadata']
+            )
+            
+            self.session.add(legal_doc)
+            self.session.commit()
+            logging.info(f"Saved legal document {legal_doc.id} to database")
+        except Exception as e:
+            logging.error(f"Error saving legal document: {str(e)}")
+            logging.error(f"Item dict: {item_dict}")
+            raise
 
     def close_spider(self, spider):
         if self.session:
@@ -266,25 +266,10 @@ class LegalDocumentsPipeline:
             if 'lawMetadata' not in item_dict:
                 return item
             
-            law_metadata = item_dict['lawMetadata']
-            
             legal_doc = LegalDocument(
                 id=item_dict['id'],
                 text=item_dict['text'],
-                original_id=law_metadata.get('originalId'),
-                doc_kind=law_metadata.get('docKind'),
-                title=law_metadata.get('title'),
-                source=law_metadata.get('source'),
-                url=law_metadata.get('url'),
-                published_at=law_metadata.get('publishedAt'),
-                parsed_at=law_metadata.get('parsedAt'),
-                jurisdiction=law_metadata.get('jurisdiction'),
-                language=law_metadata.get('language'),
-                stage=law_metadata.get('stage'),
-                discussion_period=law_metadata.get('discussionPeriod'),
-                explanatory_note=law_metadata.get('explanatoryNote'),
-                summary_reports=law_metadata.get('summaryReports'),
-                comment_stats=law_metadata.get('commentStats')
+                law_metadata=item_dict['lawMetadata']
             )
             
             self.session.add(legal_doc)
@@ -293,7 +278,10 @@ class LegalDocumentsPipeline:
             
         except IntegrityError as e:
             self.session.rollback()
-            logging.warning(f"Duplicate legal document found: {item_dict['id']}")
+            # Extract source and URL for better error logging
+            source = item_dict['lawMetadata'].get('source', '')
+            url = item_dict['lawMetadata'].get('url', '')
+            logging.warning(f"Duplicate legal document found: {source}:{url}")
         except Exception as e:
             self.session.rollback()
             logging.error(f"Error saving legal document to database: {str(e)}")
