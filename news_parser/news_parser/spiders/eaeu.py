@@ -1,5 +1,5 @@
 import scrapy
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 from bs4 import BeautifulSoup
 import logging
@@ -17,10 +17,37 @@ class EaeuSpider(scrapy.Spider):
 
     def start_requests(self):
         """Start with the main page to find latest documents"""
+        # Get today's and yesterday's dates
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        
+        # Format dates for URL parameters (if needed)
+        today_str = today.strftime('%d.%m.%Y')
+        yesterday_str = yesterday.strftime('%d.%m.%Y')
+        
+        logging.info(f"Looking for documents from {yesterday_str} and {today_str}")
+        
+        # Start with the main page
         yield scrapy.Request(
             url='https://docs.eaeunion.org/',
-            callback=self.parse_main_page
+            callback=self.parse_main_page,
+            meta={'today': today_str, 'yesterday': yesterday_str}
         )
+        
+        # Also try to access search/filter pages if they exist
+        # Try different possible search URLs
+        search_urls = [
+            'https://docs.eaeunion.org/search/',
+            'https://docs.eaeunion.org/documents/',
+            'https://docs.eaeunion.org/filter/',
+        ]
+        
+        for search_url in search_urls:
+            yield scrapy.Request(
+                url=search_url,
+                callback=self.parse_search_page,
+                meta={'today': today_str, 'yesterday': yesterday_str, 'search_url': search_url}
+            )
 
     def parse_main_page(self, response):
         """Parse the main page to find latest document links"""
@@ -28,7 +55,7 @@ class EaeuSpider(scrapy.Spider):
         
         logging.info(f"Parsing main page: {response.url}")
         
-        # # Save the page HTML for debugging
+        # Save the page HTML for debugging
         # with open('eaeu_main_page.html', 'w', encoding='utf-8') as f:
         #     f.write(response.text)
         logging.info("Saved main page HTML to eaeu_main_page.html")
@@ -60,16 +87,67 @@ class EaeuSpider(scrapy.Spider):
                 seen_urls.add(url)
                 unique_links.append(link)
         
-        logging.info(f"Found {len(unique_links)} unique document links")
+        logging.info(f"Found {len(unique_links)} unique document links from main page")
         
         # Visit each document detail page
-        for link in unique_links[:5]:  # Limit to first 5 for testing
+        for link in unique_links[:10]:  # Increased limit to get more documents
             doc_url = response.urljoin(link['href'])
             logging.info(f"Will visit document URL: {doc_url}")
             yield scrapy.Request(
                 url=doc_url,
                 callback=self.parse_document,
-                meta={'doc_url': doc_url}
+                meta={'doc_url': doc_url, 'source': 'main_page'}
+            )
+
+    def parse_search_page(self, response):
+        """Parse search/filter pages to find documents"""
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        logging.info(f"Parsing search page: {response.url}")
+        
+        # Save the search page HTML for debugging
+        search_page_name = response.url.split('/')[-2] if response.url.split('/')[-2] else 'search'
+        # with open(f'eaeu_{search_page_name}_page.html', 'w', encoding='utf-8') as f:
+        #     f.write(response.text)
+        logging.info(f"Saved search page HTML to eaeu_{search_page_name}_page.html")
+        
+        # Look for document links on search pages
+        doc_links = []
+        
+        # Pattern 1: Direct document links
+        links = soup.find_all('a', href=re.compile(r'/documents/\d+/'))
+        doc_links.extend(links)
+        
+        # Pattern 2: Links with document IDs
+        links = soup.find_all('a', href=re.compile(r'/documents/'))
+        doc_links.extend(links)
+        
+        # Pattern 3: Any links that might be documents
+        links = soup.find_all('a', href=True)
+        for link in links:
+            href = link.get('href', '')
+            if '/documents/' in href or 'doc' in href.lower():
+                doc_links.append(link)
+        
+        # Remove duplicates
+        unique_links = []
+        seen_urls = set()
+        for link in doc_links:
+            url = response.urljoin(link['href'])
+            if url not in seen_urls:
+                seen_urls.add(url)
+                unique_links.append(link)
+        
+        logging.info(f"Found {len(unique_links)} unique document links from search page")
+        
+        # Visit each document detail page
+        for link in unique_links[:10]:  # Increased limit to get more documents
+            doc_url = response.urljoin(link['href'])
+            logging.info(f"Will visit document URL from search: {doc_url}")
+            yield scrapy.Request(
+                url=doc_url,
+                callback=self.parse_document,
+                meta={'doc_url': doc_url, 'source': 'search_page'}
             )
 
     def parse_document(self, response):
@@ -79,8 +157,8 @@ class EaeuSpider(scrapy.Spider):
         logging.info(f"Parsing document page: {response.url}")
         
         # Save the document page HTML for debugging
-        with open(f'eaeu_doc_{response.url.split("/")[-2]}.html', 'w', encoding='utf-8') as f:
-            f.write(response.text)
+        # with open(f'eaeu_doc_{response.url.split("/")[-2]}.html', 'w', encoding='utf-8') as f:
+        #     f.write(response.text)
         logging.info(f"Saved document HTML to eaeu_doc_{response.url.split('/')[-2]}.html")
         
         # Extract document title - look for specific title elements
@@ -170,12 +248,20 @@ class EaeuSpider(scrapy.Spider):
             # Clean up whitespace
             content = re.sub(r'\s+', ' ', content).strip()
         
-        # Extract document date
+        # Extract document date - look for multiple date patterns
         doc_date = ""
-        date_match = re.search(r'(\d{2}\.\d{2}\.\d{4})', title or content)
-        if date_match:
-            doc_date = date_match.group(1)
-            logging.info(f"Extracted date: {doc_date}")
+        date_patterns = [
+            r'(\d{2}\.\d{2}\.\d{4})',  # DD.MM.YYYY
+            r'(\d{4}-\d{2}-\d{2})',    # YYYY-MM-DD
+            r'(\d{1,2}\s+[а-я]+\s+\d{4})',  # Russian date format
+        ]
+        
+        for pattern in date_patterns:
+            date_match = re.search(pattern, title or content)
+            if date_match:
+                doc_date = date_match.group(1)
+                logging.info(f"Extracted date using pattern '{pattern}': {doc_date}")
+                break
         
         # Generate unique ID
         doc_id = str(uuid.uuid4())
@@ -184,10 +270,33 @@ class EaeuSpider(scrapy.Spider):
         published_at = int(datetime.now().timestamp())
         if doc_date:
             try:
-                date_obj = datetime.strptime(doc_date, '%d.%m.%Y')
+                # Try different date formats
+                if re.match(r'\d{2}\.\d{2}\.\d{4}', doc_date):
+                    date_obj = datetime.strptime(doc_date, '%d.%m.%Y')
+                elif re.match(r'\d{4}-\d{2}-\d{2}', doc_date):
+                    date_obj = datetime.strptime(doc_date, '%Y-%m-%d')
+                else:
+                    # For Russian date format, we'll need more complex parsing
+                    # For now, use current date
+                    date_obj = datetime.now()
+                
                 published_at = int(date_obj.timestamp())
-            except:
-                pass
+                logging.info(f"Converted date {doc_date} to timestamp: {published_at}")
+            except Exception as e:
+                logging.warning(f"Failed to parse date {doc_date}: {e}")
+        
+        # Check if document is from today or yesterday
+        doc_datetime = datetime.fromtimestamp(published_at)
+        today = datetime.now().date()
+        yesterday = today - timedelta(days=1)
+        doc_date_only = doc_datetime.date()
+        
+        # Only process documents from today or yesterday
+        if doc_date_only not in [today, yesterday]:
+            logging.info(f"Skipping document from {doc_date_only} (not today or yesterday)")
+            return
+        
+        logging.info(f"Processing document from {doc_date_only} (today: {today}, yesterday: {yesterday})")
         
         # If title is still generic, try to extract a better title from content
         if not title or title.lower() in ['документы', 'документ', 'documents']:
@@ -204,6 +313,7 @@ class EaeuSpider(scrapy.Spider):
         logging.info(f"Final title: {title}")
         logging.info(f"Final doc number: {doc_number}")
         logging.info(f"Content length: {len(content)}")
+        logging.info(f"Document date: {doc_date_only}")
         
         # Only yield if we have meaningful content
         if content and len(content) > 50:

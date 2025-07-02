@@ -1,5 +1,5 @@
 import scrapy
-from datetime import datetime
+from datetime import datetime, timedelta
 from scrapy.spiders import SitemapSpider
 from news_parser.items import NewsArticle
 from bs4 import BeautifulSoup
@@ -14,6 +14,31 @@ class KommersantSpider(SitemapSpider):
         ('/doc/', 'parse_article'),
         ('/news/', 'parse_article')
     ]
+
+    def __init__(self, *args, **kwargs):
+        super(KommersantSpider, self).__init__(*args, **kwargs)
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        logging.info(f"Initializing Kommersant spider for dates: {self.target_dates}")
+
+    def sitemap_filter(self, entries):
+        """Filter sitemap entries by date"""
+        for entry in entries:
+            # Get lastmod from the entry
+            lastmod = entry.get('lastmod', datetime.now().isoformat())
+            # Extract date from lastmod (format: 2025-07-02T10:30:00+03:00)
+            entry_date = lastmod.split('T')[0] if 'T' in lastmod else lastmod[:10]
+            
+            if entry_date in self.target_dates:
+                logging.info(f"Found article from {entry_date}: {entry['loc']}")
+                yield entry
+            else:
+                logging.debug(f"Skipping article from {entry_date} (not today or yesterday): {entry['loc']}")
 
     def parse_article(self, response):
         # Generate unique ID
@@ -48,15 +73,33 @@ class KommersantSpider(SitemapSpider):
         # Get article timestamp if available
         published_at = None
         published_at_iso = None
+        article_date = None
         timestamp = response.css('time.article__time::attr(datetime)').get()
         if timestamp:
-            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-            published_at = int(dt.timestamp())
-            published_at_iso = dt.isoformat()
+            try:
+                dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                published_at = int(dt.timestamp())
+                published_at_iso = dt.isoformat()
+                article_date = dt.strftime('%Y-%m-%d')
+                logging.info(f"Parsed article date: {article_date}")
+            except ValueError:
+                # Fallback if parsing fails
+                current_time = datetime.now()
+                published_at = int(current_time.timestamp())
+                published_at_iso = current_time.isoformat()
+                article_date = current_time.strftime('%Y-%m-%d')
+                logging.warning(f"Could not parse date '{timestamp}', using current time")
         else:
             current_time = datetime.now()
             published_at = int(current_time.timestamp())
             published_at_iso = current_time.isoformat()
+            article_date = current_time.strftime('%Y-%m-%d')
+            logging.warning("No date found in article, using current time")
+        
+        # Check if the article date is from today or yesterday
+        if article_date not in self.target_dates:
+            logging.debug(f"Skipping article from {article_date} (not today or yesterday): {response.url}")
+            return
         
         # Create article with required structure matching Note.md format
         article = NewsArticle()
@@ -74,6 +117,7 @@ class KommersantSpider(SitemapSpider):
         }
         
         # Debug: Print found content
+        logging.info(f"Yielding article from {article_date}: {response.url}")
         logging.info(f"Title found: {title_text}")
         logging.info(f"Text length: {len(article['text'])}")
         

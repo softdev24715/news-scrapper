@@ -41,13 +41,17 @@ class PnpSpider(Spider):
     
     def __init__(self, *args, **kwargs):
         super(PnpSpider, self).__init__(*args, **kwargs)
-        # Get today's date for filtering
+        # Get today's and yesterday's dates for filtering
         today = datetime.now()
-        self.target_date = today.strftime('%Y-%m-%d')
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
         # Use direct RSS feed URL
         self.start_urls = ['https://www.pnp.ru/rss/index.xml']
         
-        logging.info(f"Initializing PNP spider for date: {self.target_date}")
+        logging.info(f"Initializing PNP spider for dates: {self.target_dates}")
         logging.info(f"Current processed URLs count: {len(self.processed_urls)}")
 
     def start_requests(self):
@@ -148,11 +152,12 @@ class PnpSpider(Spider):
             # Check if we have a date for this URL
             if url in url_date_mapping:
                 dt = url_date_mapping[url]
-                if dt.strftime('%Y-%m-%d') != self.target_date:
-                    logging.debug(f"Article not from today ({dt.strftime('%Y-%m-%d')}): {url}")
+                date_str = dt.strftime('%Y-%m-%d')
+                if date_str not in self.target_dates:
+                    logging.debug(f"Article not from today or yesterday ({date_str}): {url}")
                     continue
                 else:
-                    logging.info(f"Article is from today: {url}")
+                    logging.info(f"Article is from {date_str}: {url}")
             else:
                 # If no date found, assume it's from today for now
                 logging.debug(f"No date found for URL, assuming today: {url}")
@@ -253,9 +258,15 @@ class PnpSpider(Spider):
             
             published_at = int(dt.timestamp())
             published_at_iso = dt.isoformat()
-            logging.info(f"Parsed date: {published_at_iso}")
+            article_date = dt.strftime('%Y-%m-%d')
+            logging.info(f"Parsed article date: {article_date}")
         except Exception as e:
             logging.error(f"Error parsing date {date_str}: {e}")
+            return
+        
+        # Check if the article date is from today or yesterday
+        if article_date not in self.target_dates:
+            logging.debug(f"Skipping article from {article_date} (not today or yesterday): {response.url}")
             return
             
         # Get content - updated selector
@@ -280,7 +291,7 @@ class PnpSpider(Spider):
         }
         
         # Debug: Print found content
-        logging.info(f"Processing article: {response.url}")
+        logging.info(f"Yielding article from {article_date}: {response.url}")
         logging.info(f"Title found: {title}")
         logging.info(f"Text length: {len(article['text'])}")
         

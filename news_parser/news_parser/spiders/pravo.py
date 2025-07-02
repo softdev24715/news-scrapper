@@ -15,9 +15,14 @@ class PravoSpider(scrapy.Spider):
     }
 
     def parse(self, response):
-        # today = date.today() - timedelta(days=1)
-        today = datetime.now().strftime('%Y-%m-%d')
-        self.logger.info(f"Looking for documents from: {today}")
+        # Get today's and yesterday's dates
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        self.logger.info(f"Looking for documents from: {target_dates}")
 
         root = ET.fromstring(response.text)
         
@@ -30,9 +35,9 @@ class PravoSpider(scrapy.Spider):
             # Parse publication number and date from description
             pub_info = self.parse_publication_info(description)
             
-            # Check if this document is from today
-            if not self.is_today(pub_info.get('publicationDate'), today):
-                self.logger.debug(f"Skipping document from {pub_info.get('publicationDate')} - not matching {today}")
+            # Check if this document is from today or yesterday
+            if not self.is_target_date(pub_info.get('publicationDate'), target_dates):
+                self.logger.debug(f"Skipping document from {pub_info.get('publicationDate')} - not matching {target_dates}")
                 continue
             
             self.logger.info(f"Processing document from {pub_info.get('publicationDate')}: {title}")
@@ -76,16 +81,16 @@ class PravoSpider(scrapy.Spider):
                 'lawMetadata': law_metadata
             }
 
-    def is_today(self, publication_date_str, today_str):
-        """Check if publication date is today"""
+    def is_target_date(self, publication_date_str, target_dates):
+        """Check if publication date is in the target dates list"""
         if not publication_date_str:
             return False
             
         try:
             # Parse date in format "DD.MM.YYYY"
             pub_date = datetime.strptime(publication_date_str, '%d.%m.%Y').date()
-            today_date = datetime.strptime(today_str, '%Y-%m-%d').date()
-            return pub_date == today_date
+            pub_date_str = pub_date.strftime('%Y-%m-%d')
+            return pub_date_str in target_dates
         except ValueError:
             return False
 

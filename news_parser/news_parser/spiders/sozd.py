@@ -1,5 +1,5 @@
 import scrapy
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 from bs4 import BeautifulSoup
 import logging
@@ -17,6 +17,16 @@ class SozdSpider(scrapy.Spider):
 
     def start_requests(self):
         """Start with the search page to find recent bills"""
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        
+        logging.info(f"Looking for bills from: {self.target_dates}")
+        
         yield scrapy.Request(
             url='https://sozd.duma.gov.ru/search',
             callback=self.parse_search_page
@@ -32,13 +42,18 @@ class SozdSpider(scrapy.Spider):
         logging.info(f"Found {len(bill_links)} bill links")
         
         # Visit each bill detail page
-        for link in bill_links[:5]:  # Limit to first 5 for testing
+        processed_count = 0
+        for link in bill_links[:10]:  # Increased limit for better coverage
             bill_url = response.urljoin(link['href'])
+            processed_count += 1
+            logging.info(f"Requesting bill {processed_count}/{len(bill_links[:10])}: {bill_url}")
             yield scrapy.Request(
                 url=bill_url,
                 callback=self.parse_bill_detail,
                 meta={'bill_url': bill_url}
             )
+        
+        logging.info(f"Requested {processed_count} bills for processing")
 
     def parse_bill_detail(self, response):
         """Parse individual bill detail page to extract content and metadata"""
@@ -166,12 +181,26 @@ class SozdSpider(scrapy.Spider):
         
         # Convert date to timestamp
         published_at = None
+        bill_date = None
         if registration_date:
             try:
                 date_obj = datetime.strptime(registration_date, '%d.%m.%Y')
                 published_at = int(date_obj.timestamp())
+                bill_date = date_obj.strftime('%Y-%m-%d')
+                
+                # Check if the bill is from today or yesterday
+                if bill_date not in self.target_dates:
+                    logging.debug(f"Skipping bill from {bill_date} - not matching {self.target_dates}")
+                    return
+                else:
+                    logging.info(f"Processing bill from {bill_date}: {title}")
             except ValueError:
-                pass
+                logging.warning(f"Could not parse registration date: {registration_date}")
+                # If no date found, assume it's from today for now
+                logging.debug(f"No valid date found for bill, assuming today: {title}")
+        else:
+            # If no date found, assume it's from today for now
+            logging.debug(f"No registration date found for bill, assuming today: {title}")
         
         # Create the structured output with exact same keys as regulation.gov.ru
         yield {

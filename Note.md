@@ -120,10 +120,4 @@ This parsing system will enable efficient and automated data collection from leg
   }
 }
 
-
-railinsider.com.ua
-railwaygazette.com
-railjournal.com
-railwaypro.com
-lloydslist.maritimeintelligence.informa.com
-tradewindsnews.com
+sudo journalctl -u news-scraper -f

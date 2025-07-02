@@ -3,7 +3,7 @@ from scrapy.spiders import SitemapSpider
 from news_parser.items import NewsArticle
 import uuid
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import logging
 
@@ -13,13 +13,20 @@ class RIASpider(SitemapSpider):
     
     def __init__(self, *args, **kwargs):
         super(RIASpider, self).__init__(*args, **kwargs)
-        # Get today's date for sitemap
-        today = datetime.now().strftime('%Y%m%d')
-        self.sitemap_urls = [f'https://ria.ru/sitemap_article.xml?date_start={today}&date_end={today}']
-        logging.info(f"Filtering for articles from: {today}")
+        # Get today's and yesterday's dates for sitemap
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        today_str = today.strftime('%Y%m%d')
+        yesterday_str = yesterday.strftime('%Y%m%d')
+        
+        self.target_dates = [today_str, yesterday_str]
+        self.sitemap_urls = [f'https://ria.ru/sitemap_article.xml?date_start={yesterday_str}&date_end={today_str}']
+        logging.info(f"Filtering for articles from: {self.target_dates}")
     
     def parse(self, response):
         """Parse article page"""
+        logging.info(f"Processing RIA article: {response.url}")
+        
         # Parse HTML with BeautifulSoup
         soup = BeautifulSoup(response.text, 'html.parser')
         
@@ -50,6 +57,11 @@ class RIASpider(SitemapSpider):
                 dt = datetime.strptime(date_str, '%Y%m%dT%H%M')
                 published_at = int(dt.timestamp())
                 published_at_iso = dt.isoformat() + 'Z'
+                
+                # Log the article date for verification
+                article_date = dt.strftime('%Y%m%d')
+                logging.info(f"Article published on {article_date}: {title_text}")
+                
             except (ValueError, AttributeError) as e:
                 self.logger.warning(f"Could not parse date: {date_str} - {str(e)}")
                 # Set current time as fallback

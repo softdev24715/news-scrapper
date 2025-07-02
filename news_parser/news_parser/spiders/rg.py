@@ -1,5 +1,5 @@
 import scrapy
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from scrapy.spiders import SitemapSpider
 from news_parser.items import NewsArticle
 from bs4 import BeautifulSoup
@@ -15,21 +15,30 @@ class RGSpider(SitemapSpider):
     
     def __init__(self, *args, **kwargs):
         super(RGSpider, self).__init__(*args, **kwargs)
-        # Get today's date for filtering
-        self.today = datetime.now().strftime('%Y-%m-%d')
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        
+        # Calculate yesterday's start and end timestamps
+        yesterday_start = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_end = yesterday.replace(hour=23, minute=59, second=59)
         
         # Calculate today's start and end timestamps
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = today.replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = today_start.replace(hour=23, minute=59, second=59)
         
         # Convert to Unix timestamps
-        self.start_timestamp = int(today_start.timestamp())
+        self.start_timestamp = int(yesterday_start.timestamp())
         self.end_timestamp = int(today_end.timestamp())
         
-        # Construct sitemap URL for today
+        # Construct sitemap URL for both days
         self.sitemap_urls = [f'https://rg.ru/sitemaps/index.xml?date_start={self.start_timestamp}&date_end={self.end_timestamp}']
         
-        logging.info(f"Initializing RG spider for date: {self.today}")
+        logging.info(f"Initializing RG spider for dates: {self.target_dates}")
         logging.info(f"Using sitemap URL: {self.sitemap_urls[0]}")
         logging.info(f"Current processed URLs count: {len(self.processed_urls)}")
 
@@ -37,7 +46,8 @@ class RGSpider(SitemapSpider):
         for entry in entries:
             # Extract date from lastmod
             date = entry.get('lastmod', '').split('T')[0]  # Get date part from ISO format
-            if date == self.today:
+            if date in self.target_dates:
+                logging.debug(f"Processing sitemap entry from {date}: {entry.get('loc')}")
                 yield entry
 
     def parse(self, response):

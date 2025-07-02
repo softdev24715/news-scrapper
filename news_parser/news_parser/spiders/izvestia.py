@@ -4,11 +4,23 @@ from news_parser.items import NewsArticle
 import re
 from bs4 import BeautifulSoup
 import uuid
+import logging
 
 class IzvestiaSpider(scrapy.Spider):
     name = 'izvestia'
     allowed_domains = ['iz.ru']
     start_urls = ['https://iz.ru/export/sitemap/last/xml']
+
+    def __init__(self, *args, **kwargs):
+        super(IzvestiaSpider, self).__init__(*args, **kwargs)
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        logging.info(f"Initializing Izvestia spider for dates: {self.target_dates}")
 
     def start_requests(self):
         """
@@ -57,9 +69,7 @@ class IzvestiaSpider(scrapy.Spider):
             'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'
         }
         
-        # Get today's date in YYYY-MM-DD format
-        today = datetime.now().strftime('%Y-%m-%d')
-        self.logger.info(f"Looking for articles from today: {today}")
+        self.logger.info(f"Looking for articles from: {self.target_dates}")
         
         # Extract URLs with namespace handling
         # The structure is: <url><loc>article_url</loc><lastmod>date</lastmod><priority>priority</priority></url>
@@ -67,42 +77,32 @@ class IzvestiaSpider(scrapy.Spider):
         
         self.logger.info(f"Found {len(urls_with_dates)} URL entries in sitemap")
         
-        # Filter URLs by today's date and process them
+        # Filter URLs by target dates and process them
         processed_count = 0
         for url_entry in urls_with_dates:
             loc = url_entry.xpath('sm:loc/text()', namespaces=namespaces).get()
             lastmod = url_entry.xpath('sm:lastmod/text()', namespaces=namespaces).get()
             
-            if loc and lastmod and today in lastmod:
-                self.logger.info(f"Found today's article: {loc} (date: {lastmod})")
-                processed_count += 1
-                yield scrapy.Request(url=loc, callback=self.parse_article_page)
+            if loc and lastmod:
+                # Extract date from lastmod (format: 2025-07-02T10:30:00+03:00)
+                entry_date = lastmod.split('T')[0] if 'T' in lastmod else lastmod[:10]
                 
-                # Limit to first 20 articles for testing
-                if processed_count >= 20:
-                    break
-        
-        self.logger.info(f"Processed {processed_count} article URLs from today")
-        
-        # If no articles found for today, try yesterday
-        if processed_count == 0:
-            yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-            self.logger.info(f"No articles found for today, trying yesterday: {yesterday}")
-            
-            for url_entry in urls_with_dates:
-                loc = url_entry.xpath('sm:loc/text()', namespaces=namespaces).get()
-                lastmod = url_entry.xpath('sm:lastmod/text()', namespaces=namespaces).get()
-                
-                if loc and lastmod and yesterday in lastmod:
-                    self.logger.info(f"Found yesterday's article: {loc} (date: {lastmod})")
+                if entry_date in self.target_dates:
+                    self.logger.info(f"Found article from {entry_date}: {loc}")
                     processed_count += 1
-                    yield scrapy.Request(url=loc, callback=self.parse_article_page)
+                    yield scrapy.Request(
+                        url=loc, 
+                        callback=self.parse_article_page,
+                        meta={'entry_date': entry_date}
+                    )
                     
-                    # Limit to first 10 articles for testing
-                    if processed_count >= 10:
+                    # Limit to first 30 articles for testing
+                    if processed_count >= 30:
                         break
-            
-            self.logger.info(f"Processed {processed_count} article URLs from yesterday")
+                else:
+                    self.logger.debug(f"Skipping article from {entry_date} (not today or yesterday): {loc}")
+        
+        self.logger.info(f"Processed {processed_count} article URLs from target dates")
 
     def parse_fallback(self, response):
         """
@@ -132,9 +132,13 @@ class IzvestiaSpider(scrapy.Spider):
         
         self.logger.info(f"Found {len(article_urls)} article URLs in fallback")
         
-        # Limit to first 10 articles for testing
-        for url in list(article_urls)[:10]:
-            yield scrapy.Request(url=url, callback=self.parse_article_page)
+        # Limit to first 15 articles for testing
+        for url in list(article_urls)[:15]:
+            yield scrapy.Request(
+                url=url, 
+                callback=self.parse_article_page,
+                meta={'entry_date': datetime.now().strftime('%Y-%m-%d')}  # Assume today for fallback
+            )
 
     def parse_article_page(self, response):
         """
@@ -153,20 +157,32 @@ class IzvestiaSpider(scrapy.Spider):
 
         # Get publication date
         pub_date_str = soup.select_one('time.article-header__date')
+        article_date = None
         if pub_date_str and pub_date_str.has_attr('datetime'):
             try:
                 dt = datetime.fromisoformat(pub_date_str['datetime'])
                 published_at = int(dt.timestamp())
                 published_at_iso = dt.isoformat()
+                article_date = dt.strftime('%Y-%m-%d')
+                self.logger.info(f"Parsed article date: {article_date}")
             except ValueError:
                 # Fallback if parsing fails
                 current_time = datetime.now()
                 published_at = int(current_time.timestamp())
                 published_at_iso = current_time.isoformat()
+                article_date = current_time.strftime('%Y-%m-%d')
+                self.logger.warning(f"Could not parse date '{pub_date_str['datetime']}', using current time")
         else:
             current_time = datetime.now()
             published_at = int(current_time.timestamp())
             published_at_iso = current_time.isoformat()
+            article_date = current_time.strftime('%Y-%m-%d')
+            self.logger.warning("No date found in article, using current time")
+
+        # Check if the article date is from today or yesterday
+        if article_date not in self.target_dates:
+            self.logger.debug(f"Skipping article from {article_date} (not today or yesterday): {url}")
+            return
 
         # Get article text
         article_text = []
@@ -202,5 +218,9 @@ class IzvestiaSpider(scrapy.Spider):
             'header': title,
             'parsed_at': int(datetime.now().timestamp())
         }
+        
+        self.logger.info(f"Yielding article from {article_date}: {url}")
+        self.logger.info(f"Title: {title}")
+        self.logger.info(f"Text length: {len(article['text'])}")
         
         yield article 

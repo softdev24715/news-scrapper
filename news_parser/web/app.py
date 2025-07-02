@@ -327,7 +327,14 @@ def index():
                 FROM spider_status 
                 ORDER BY name
             """))
-            spiders = [dict(row) for row in result]
+            spiders = []
+            for row in result:
+                spider = {
+                    'name': row[0],
+                    'status': row[1],
+                    'last_update': row[2]
+                }
+                spiders.append(spider)
             
             # Format last_update and add color
             for spider in spiders:

@@ -1,5 +1,5 @@
 import scrapy
-from datetime import datetime
+from datetime import datetime, timedelta
 from news_parser.items import NewsArticle
 from bs4 import BeautifulSoup
 import uuid
@@ -15,6 +15,17 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 class MeduzaSimpleSpider(scrapy.Spider):
     name = 'meduza'
     allowed_domains = ['meduza.io']
+    
+    def __init__(self, *args, **kwargs):
+        super(MeduzaSimpleSpider, self).__init__(*args, **kwargs)
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        logging.info(f"Initializing Meduza spider for dates: {self.target_dates}")
     
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
@@ -86,7 +97,7 @@ class MeduzaSimpleSpider(scrapy.Spider):
             
             logging.info(f"Found {len(items)} items in RSS feed")
             
-            for item in items:  # Limit to 10 articles for testing
+            for item in items:
                 title_elem = item.find('title')
                 link_elem = item.find('link')
                 desc_elem = item.find('description')
@@ -100,13 +111,18 @@ class MeduzaSimpleSpider(scrapy.Spider):
                     pub_date = pub_date_elem.text.strip() if pub_date_elem is not None and pub_date_elem.text else ''
                     guid = guid_elem.text.strip() if guid_elem is not None and guid_elem.text else ''
                     
-                    logging.info(f"Processing article: {title}")
+                    # Parse publication date
+                    published_at, article_date = self.parse_publication_date(pub_date)
+                    
+                    # Check if the article date is from today or yesterday
+                    if article_date not in self.target_dates:
+                        logging.debug(f"Skipping article from {article_date} (not today or yesterday): {url}")
+                        continue
+                    
+                    logging.info(f"Processing article from {article_date}: {title}")
                     
                     # Extract content from description (RSS feed often contains full content)
                     article_text = self.extract_content_from_description(description)
-                    
-                    # Parse publication date
-                    published_at = self.parse_publication_date(pub_date)
                     
                     # Create article with required structure matching Note.md format
                     article = NewsArticle()
@@ -123,7 +139,8 @@ class MeduzaSimpleSpider(scrapy.Spider):
                         'parsed_at': int(datetime.now().timestamp())
                     }
                     
-                    logging.info(f"Successfully extracted article: {title}")
+                    logging.info(f"Successfully extracted article from {article_date}: {title}")
+                    logging.info(f"Text length: {len(article_text)}")
                     yield article
                     
         except Exception as e:
@@ -156,18 +173,23 @@ class MeduzaSimpleSpider(scrapy.Spider):
             return description
 
     def parse_publication_date(self, pub_date):
-        """Parse publication date from RSS"""
+        """Parse publication date from RSS and return timestamp and date string"""
         if not pub_date:
-            return int(datetime.now().timestamp())
+            current_time = datetime.now()
+            return int(current_time.timestamp()), current_time.strftime('%Y-%m-%d')
         
         try:
             # Try to parse various date formats
             from dateutil import parser
             parsed_date = parser.parse(pub_date)
-            return int(parsed_date.timestamp())
+            timestamp = int(parsed_date.timestamp())
+            date_str = parsed_date.strftime('%Y-%m-%d')
+            logging.info(f"Parsed publication date: {date_str}")
+            return timestamp, date_str
         except Exception as e:
             logging.warning(f"Error parsing publication date '{pub_date}': {e}")
-            return int(datetime.now().timestamp())
+            current_time = datetime.now()
+            return int(current_time.timestamp()), current_time.strftime('%Y-%m-%d')
 
     def parse(self, response):
         """Not used with RSS-only approach"""

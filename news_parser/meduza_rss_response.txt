@@ -12,8 +12,8 @@
     </image>
     <atom:link href="https://meduza.io/rss/all" rel="self" type="application/rss+xml"/>
     <item>
-      <title><![CDATA[На основателя проекта «Идите лесом» Григория Свердлина завели дело о «фейках» про армию]]></title>
-      <link>https://meduza.io/news/2025/07/01/na-osnovatelya-proekta-idite-lesom-grigoriya-sverdlina-zaveli-delo-o-feykah-pro-armiyu</link>
-      <guid>https://meduza.io/news/2025/07/01/na-osnovatelya-proekta-idite-lesom-grigoriya-sverdlina-zaveli-delo-o-feykah-pro-armiyu</guid>
-      <enclosure url="https://meduza.io/imgly/share/1751382446/news/2025/07/01/na-osnovatelya-proekta-idite-lesom-grigoriya-sverdlina-zaveli-delo-o-feykah-pro-armiyu" length="0" type="image/png"/>
-      <description><![CDATA[<p>В Мещанский суд Москвы поступили материалы уголовного дела в отношении основателя проекта «Идите лесом» и бывшего директора «Ночлежки» Григория Свердлина, обратили внимание РБК и «Медиазона».<p>
+      <title><![CDATA[Украинская разведка ожидает, что КНДР направит до 30 тысяч солдат для участия в войне на стороне России]]></title>
+      <link>https://meduza.io/news/2025/07/02/ukrainskaya-razvedka-ozhidaet-chto-kndr-napravit-do-30-tysyach-soldat-dlya-uchastiya-v-voyne-na-storone-rossii</link>
+      <guid>https://meduza.io/news/2025/07/02/ukrainskaya-razvedka-ozhidaet-chto-kndr-napravit-do-30-tysyach-soldat-dlya-uchastiya-v-voyne-na-storone-rossii</guid>
+      <enclosure url="https://meduza.io/imgly/share/1751459069/news/2025/07/02/ukrainskaya-razvedka-ozhidaet-chto-kndr-napravit-do-30-tysyach-soldat-dlya-uchastiya-v-voyne-na-storone-rossii" length="0" type="image/png"/>
+      <description><![CDATA[<p>Северная Корея намерена утроить численность своих войск, воюющих на стороне России вдоль линии фронта с Ук

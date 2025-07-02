@@ -1,5 +1,5 @@
 import scrapy
-from datetime import datetime
+from datetime import datetime, timedelta
 from scrapy.spiders import SitemapSpider
 from news_parser.items import NewsArticle
 from bs4 import BeautifulSoup
@@ -21,14 +21,22 @@ class VedomostiSpider(SitemapSpider):
 
     def __init__(self, *args, **kwargs):
         super(VedomostiSpider, self).__init__(*args, **kwargs)
-        # Get today's date for filtering
-        self.today = datetime.now().strftime('%Y-%m-%d')
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        
+        logging.info(f"Initializing Vedomosti spider for dates: {self.target_dates}")
 
     def sitemap_filter(self, entries):
         for entry in entries:
             # Extract date from URL or lastmod
             date = entry.get('lastmod', '').split('T')[0]  # Get date part from ISO format
-            if date == self.today:
+            if date in self.target_dates:
+                logging.debug(f"Processing sitemap entry from {date}: {entry.get('loc')}")
                 yield entry
 
     def parse_article(self, response):
@@ -39,6 +47,8 @@ class VedomostiSpider(SitemapSpider):
         
         # Mark URL as processed
         self.processed_urls.add(response.url)
+        
+        logging.info(f"Processing Vedomosti article: {response.url}")
         
         # Generate unique ID
         article_id = str(uuid.uuid4())
@@ -75,6 +85,10 @@ class VedomostiSpider(SitemapSpider):
             dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
             published_at = int(dt.timestamp())
             published_at_iso = dt.isoformat()
+            
+            # Log the article date for verification
+            article_date = dt.strftime('%Y-%m-%d')
+            logging.info(f"Article published on {article_date}: {title_text}")
         else:
             current_time = datetime.now()
             published_at = int(current_time.timestamp())

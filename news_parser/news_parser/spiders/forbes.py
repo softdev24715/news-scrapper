@@ -44,9 +44,14 @@ class ForbesSpider(XMLFeedSpider):
     
     def __init__(self, *args, **kwargs):
         super(ForbesSpider, self).__init__(*args, **kwargs)
-        # Get today's date for filtering
-        self.target_date = datetime.now().strftime('%Y-%m-%d')
-        logging.info(f"Initializing Forbes spider for date: {self.target_date}")
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        logging.info(f"Initializing Forbes spider for dates: {self.target_dates}")
         logging.info(f"Current processed URLs count: {len(self.processed_urls)}")
 
     def start_requests(self):
@@ -111,13 +116,15 @@ class ForbesSpider(XMLFeedSpider):
             dt = datetime.strptime(pub_date, '%a, %d %b %Y %H:%M:%S %z')
             date_str = dt.strftime('%Y-%m-%d')
             
-            # Only process today's articles
-            if date_str != self.target_date:
-                logging.debug(f"Skipping article from {date_str}: {url}")
+            # Only process today's and yesterday's articles
+            if date_str not in self.target_dates:
+                logging.debug(f"Skipping article from {date_str} (not today or yesterday): {url}")
                 return
                 
             published_at = int(dt.timestamp())
             published_at_iso = dt.isoformat()
+            
+            logging.info(f"Processing article from {date_str}: {url}")
         except Exception as e:
             logging.error(f"Error parsing date {pub_date}: {e}")
             return
@@ -167,6 +174,7 @@ class ForbesSpider(XMLFeedSpider):
         logging.info(f"Processing article: {url} with ID: {article_id}")
         logging.info(f"Title found: {title}")
         logging.info(f"Text length: {len(article['text'])}")
+        logging.info(f"Article date: {date_str}")
         
         yield article
 

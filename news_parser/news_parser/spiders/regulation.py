@@ -1,6 +1,6 @@
 import scrapy
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import uuid
 
@@ -15,7 +15,19 @@ class RegulationSpider(scrapy.Spider):
     }
 
     def parse(self, response):
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        
+        self.logger.info(f"Looking for regulations from: {target_dates}")
+        
         root = ET.fromstring(response.text)
+        processed_count = 0
+        
         for item in root.findall('.//item'):
             guid = item.findtext('guid')
             link = item.findtext('link')
@@ -28,6 +40,19 @@ class RegulationSpider(scrapy.Spider):
 
             # Convert date to timestamp
             published_at = self.parse_date(desc_fields.get('Дата создания'))
+            
+            # Check if the regulation is from today or yesterday
+            if published_at:
+                dt = datetime.fromtimestamp(published_at)
+                regulation_date = dt.strftime('%Y-%m-%d')
+                if regulation_date not in target_dates:
+                    self.logger.debug(f"Skipping regulation from {regulation_date} - not matching {target_dates}")
+                    continue
+                else:
+                    self.logger.info(f"Processing regulation from {regulation_date}: {title}")
+            else:
+                # If no date found, assume it's from today for now
+                self.logger.debug(f"No date found for regulation, assuming today: {title}")
 
             # Compose structured item
             law_metadata = {
@@ -54,11 +79,14 @@ class RegulationSpider(scrapy.Spider):
                 'commentStats': {'total': 0}
             }
 
+            processed_count += 1
             yield {
                 'id': str(uuid.uuid4()),
                 'text': title,
                 'lawMetadata': law_metadata
             }
+        
+        self.logger.info(f"Processed {processed_count} regulations from RSS feed")
 
     def parse_description(self, description):
         # Parse multi-line description into a dict

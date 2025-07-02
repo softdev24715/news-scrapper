@@ -1,5 +1,5 @@
 import scrapy
-from datetime import datetime
+from datetime import datetime, timedelta
 from scrapy.spiders import SitemapSpider
 from news_parser.items import NewsArticle
 from bs4 import BeautifulSoup
@@ -22,22 +22,31 @@ class RBCSpider(SitemapSpider):
 
     def __init__(self, *args, **kwargs):
         super(RBCSpider, self).__init__(*args, **kwargs)
-        # Get today's date for filtering
-        self.today = datetime.now().strftime('%Y-%m-%d')
-        self.today_sitemaps = set()
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        self.target_sitemaps = set()
+        
+        logging.info(f"Initializing RBC spider for dates: {self.target_dates}")
 
     def sitemap_filter(self, entries):
         for entry in entries:
-            # For sitemap index entries, only keep today's sitemaps
+            # For sitemap index entries, only keep today's and yesterday's sitemaps
             if 'sitemap' in entry.get('loc', ''):
                 lastmod = entry.get('lastmod', '').split('T')[0]
-                if lastmod == self.today:
-                    self.today_sitemaps.add(entry.get('loc'))
+                if lastmod in self.target_dates:
+                    self.target_sitemaps.add(entry.get('loc'))
+                    logging.info(f"Processing sitemap from {lastmod}: {entry.get('loc')}")
                     yield entry
-            # For article entries, only keep today's articles
+            # For article entries, only keep today's and yesterday's articles
             else:
                 lastmod = entry.get('lastmod', '').split('T')[0]
-                if lastmod == self.today:
+                if lastmod in self.target_dates:
+                    logging.debug(f"Processing article from {lastmod}: {entry.get('loc')}")
                     yield entry
 
     def parse_article(self, response):

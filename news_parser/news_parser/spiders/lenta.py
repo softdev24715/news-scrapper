@@ -1,5 +1,5 @@
 import scrapy
-from datetime import datetime
+from datetime import datetime, timedelta
 from scrapy.spiders import XMLFeedSpider
 from news_parser.items import NewsArticle
 from bs4 import BeautifulSoup
@@ -15,8 +15,14 @@ class LentaSpider(XMLFeedSpider):
     
     def __init__(self, *args, **kwargs):
         super(LentaSpider, self).__init__(*args, **kwargs)
-        # Get today's date for filtering
-        self.today = datetime.now().strftime('%Y-%m-%d')
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        logging.info(f"Initializing Lenta spider for dates: {self.target_dates}")
 
     def parse_node(self, response, node):
         # Get publication date
@@ -24,8 +30,11 @@ class LentaSpider(XMLFeedSpider):
         if pub_date:
             # Convert pubDate to datetime
             dt = datetime.strptime(pub_date, '%a, %d %b %Y %H:%M:%S %z')
-            # Check if article is from today
-            if dt.strftime('%Y-%m-%d') != self.today:
+            date_str = dt.strftime('%Y-%m-%d')
+            
+            # Check if article is from today or yesterday
+            if date_str not in self.target_dates:
+                logging.debug(f"Skipping article from {date_str} (not today or yesterday)")
                 return
             
             # Generate unique ID
@@ -38,11 +47,13 @@ class LentaSpider(XMLFeedSpider):
                 'url': node.xpath('link/text()').get(),
                 'header': node.xpath('title/text()').get(),
                 'published_at': int(dt.timestamp()),
-                'published_at_iso': dt.isoformat()
+                'published_at_iso': dt.isoformat(),
+                'article_date': date_str
             }
             
             # Get article content
             article_url = article_meta['url']
+            logging.info(f"Processing article from {date_str}: {article_url}")
             yield scrapy.Request(
                 url=article_url,
                 callback=self.parse_article,
@@ -85,5 +96,9 @@ class LentaSpider(XMLFeedSpider):
             'header': article_meta['header'],
             'parsed_at': int(datetime.now().timestamp())
         }
+        
+        logging.info(f"Yielding article from {article_meta['article_date']}: {article_meta['url']}")
+        logging.info(f"Title: {article_meta['header']}")
+        logging.info(f"Text length: {len(article['text'])}")
         
         yield article 

@@ -48,13 +48,6 @@
             color: #ffffff !important;
         }
         
-        #runAllBtn:disabled {
-            background-color: #6c757d !important;
-            border-color: #6c757d !important;
-            color: #ffffff !important;
-            opacity: 0.65 !important;
-        }
-        
         .btn-loading {
             position: relative;
             color: transparent !important;
@@ -112,7 +105,7 @@
             <div class="col">
                 <button class="btn btn-success" onclick="startAllSpiders()" id="startAllBtn">Start All</button>
                 <button class="btn btn-danger" onclick="stopAllSpiders()" id="stopAllBtn">Stop All</button>
-                <button class="btn btn-primary" onclick="runAllSpiders()" id="runAllBtn">Run All</button>
+                <span class="ms-3 text-muted" id="runningCount">Running: 0/5</span>
             </div>
         </div>
 
@@ -257,6 +250,9 @@
                         acc[spider.name] = spider.status;
                         return acc;
                     }, {});
+                    
+                    // Update running count display and Run All button state
+                    updateRunningCount();
                 })
                 .catch(error => console.error('Error:', error));
         }
@@ -292,7 +288,7 @@
             // Determine button states based on spider status
             const startButtonDisabled = isRunning || isScheduled;
             const stopButtonDisabled = isDisabled;
-            const runButtonDisabled = isRunning;
+            const runButtonDisabled = isRunning || runningSpiders.size >= 5;
             // Show spinning if spider is running (based on actual status)
             const runButtonSpinning = isRunning;
 
@@ -370,22 +366,25 @@
                 }
             } else {
                 // No grace period - update based on actual status
-                runButton.disabled = isRunning;
+                runButton.disabled = isRunning || runningSpiders.size >= 5;
                 
-                // Only update spinning class if not manually set
-                const wasManuallySpinning = runButton.classList.contains('btn-loading') && !isRunning;
-                if (!wasManuallySpinning) {
-                    if (isRunning) {
-                        runButton.classList.add('btn-loading');
-                    } else {
-                        runButton.classList.remove('btn-loading');
-                    }
+                // Update spinning class based on actual running status
+                if (isRunning) {
+                    runButton.classList.add('btn-loading');
+                } else {
+                    runButton.classList.remove('btn-loading');
                 }
             }
         }
 
         // Run specific spider
         function runSpider(spiderName) {
+            // Check if we're already at the limit of 5 running spiders
+            if (runningSpiders.size >= 5) {
+                alert('Maximum limit reached! You can only run 5 spiders simultaneously. Please wait for some spiders to complete before running more.');
+                return;
+            }
+            
             const runButton = document.getElementById(`run-${spiderName}`);
             
             // Set grace period for 1 minute to preserve button state
@@ -413,14 +412,18 @@
                             .then(response => response.json())
                             .then(statusData => {
                                 const spider = statusData.spiders.find(s => s.name === spiderName);
-                                if (spider && spider.status !== 'running') {
-                                    clearInterval(checkCompletion);
-                                    runningSpiders.delete(spiderName);
-                                    // Clear grace period and remove spinning when spider completes
-                                    clearGracePeriod(spiderName);
-                                    runButton.classList.remove('btn-loading');
-                                    runButton.disabled = false;
-                                    updateSpiderStatus();
+                                if (spider) {
+                                    if (spider.status === 'running') {
+                                        // Spider is now running, clear grace period but keep spinning
+                                        clearGracePeriod(spiderName);
+                                    } else if (spider.status !== 'running') {
+                                        // Spider completed or failed
+                                        clearInterval(checkCompletion);
+                                        runningSpiders.delete(spiderName);
+                                        runButton.classList.remove('btn-loading');
+                                        runButton.disabled = false;
+                                        updateSpiderStatus();
+                                    }
                                 }
                             })
                             .catch(error => {
@@ -522,107 +525,21 @@
             .catch(error => console.error('Error:', error));
         }
 
-        // Run all spiders
-        function runAllSpiders() {
-            const runAllButton = document.getElementById('runAllBtn');
-            const spinnerOverlay = document.getElementById('spinnerOverlay');
+
+
+        // Update running count display
+        function updateRunningCount() {
+            const runningCountElement = document.getElementById('runningCount');
             
-            // Set grace period for all spiders for 1 minute
-            fetch('/api/scraper/status')
-                .then(response => response.json())
-                .then(data => {
-                    data.spiders.forEach(spider => {
-                        setButtonGracePeriod(spider.name, 'run');
-                    });
-                });
+            const currentRunning = runningSpiders.size;
+            runningCountElement.textContent = `Running: ${currentRunning}/5`;
             
-            // Immediately show spinning and disable button for instant feedback
-            runAllButton.classList.add('btn-loading');
-            runAllButton.disabled = true;
-            spinnerOverlay.style.display = 'flex';
-            
-            fetch('/api/scraper/immediate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ spiders: [] })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update status immediately to show running states
-                    updateSpiderStatus();
-                    
-                    // Check status periodically until all spiders are done
-                    const checkStatus = setInterval(() => {
-                        fetch('/api/scraper/status')
-                            .then(response => response.json())
-                            .then(statusData => {
-                                const allCompleted = statusData.spiders.every(spider => 
-                                    spider.status === 'scheduled' || spider.status === 'disabled' || spider.status === 'error'
-                                );
-                                if (allCompleted) {
-                                    clearInterval(checkStatus);
-                                    // Clear all grace periods and remove spinning when all spiders complete
-                                    statusData.spiders.forEach(spider => {
-                                        clearGracePeriod(spider.name);
-                                    });
-                                    runAllButton.classList.remove('btn-loading');
-                                    runAllButton.disabled = false;
-                                    spinnerOverlay.style.display = 'none';
-                                    updateSpiderStatus();
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error checking status:', error);
-                            });
-                    }, 2000); // Check every 2 seconds
-                    
-                    // Fallback timeout - if spiders take too long, stop spinning after 10 minutes
-                    setTimeout(() => {
-                        clearInterval(checkStatus);
-                        // Clear all grace periods and remove spinning after timeout
-                        fetch('/api/scraper/status')
-                            .then(response => response.json())
-                            .then(statusData => {
-                                statusData.spiders.forEach(spider => {
-                                    clearGracePeriod(spider.name);
-                                });
-                            });
-                        runAllButton.classList.remove('btn-loading');
-                        runAllButton.disabled = false;
-                        spinnerOverlay.style.display = 'none';
-                        updateSpiderStatus();
-                    }, 600000); // 10 minutes fallback
-                } else {
-                    // If request failed, clear all grace periods and remove spinning immediately
-                    fetch('/api/scraper/status')
-                        .then(response => response.json())
-                        .then(statusData => {
-                            statusData.spiders.forEach(spider => {
-                                clearGracePeriod(spider.name);
-                            });
-                        });
-                    runAllButton.classList.remove('btn-loading');
-                    runAllButton.disabled = false;
-                    spinnerOverlay.style.display = 'none';
-                    console.error('Failed to start spiders:', data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                // Clear all grace periods and remove spinning on error
-                fetch('/api/scraper/status')
-                    .then(response => response.json())
-                    .then(statusData => {
-                        statusData.spiders.forEach(spider => {
-                            clearGracePeriod(spider.name);
-                        });
-                    });
-                runAllButton.classList.remove('btn-loading');
-                runAllButton.disabled = false;
-                spinnerOverlay.style.display = 'none';
-                updateSpiderStatus();
-            });
+            // Change color when at limit
+            if (currentRunning >= 5) {
+                runningCountElement.className = 'ms-3 text-danger fw-bold';
+            } else {
+                runningCountElement.className = 'ms-3 text-muted';
+            }
         }
 
         // Update status every 5 seconds for more responsive updates

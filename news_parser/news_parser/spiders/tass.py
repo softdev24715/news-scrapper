@@ -1,5 +1,5 @@
 import scrapy
-from datetime import datetime
+from datetime import datetime, timedelta
 from scrapy.spiders import XMLFeedSpider
 from news_parser.items import NewsArticle
 from bs4 import BeautifulSoup
@@ -25,9 +25,14 @@ class TASSSpider(XMLFeedSpider):
     
     def __init__(self, *args, **kwargs):
         super(TASSSpider, self).__init__(*args, **kwargs)
-        # Get today's date for filtering
-        self.today = datetime.now().strftime('%Y-%m-%d')
-        logging.info(f"Initializing TASS spider for date: {self.today}")
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        logging.info(f"Initializing TASS spider for dates: {self.target_dates}")
         logging.info(f"Current processed URLs count: {len(self.processed_urls)}")
 
     def parse(self, response):
@@ -53,10 +58,13 @@ class TASSSpider(XMLFeedSpider):
             
         # Convert pubDate to datetime
         dt = datetime.strptime(pub_date, '%a, %d %b %Y %H:%M:%S %z')
-        # Check if article is from today
-        if dt.strftime('%Y-%m-%d') != self.today:
-            logging.debug(f"Article not from today ({dt.strftime('%Y-%m-%d')}): {url}")
+        article_date = dt.strftime('%Y-%m-%d')
+        # Check if article is from today or yesterday
+        if article_date not in self.target_dates:
+            logging.debug(f"Article not from today or yesterday ({article_date}): {url}")
             return
+        else:
+            logging.info(f"Article is from {article_date}: {url}")
         
         # Get full text from yandex:full-text
         full_text = node.xpath('yandex:full-text/text()').get()

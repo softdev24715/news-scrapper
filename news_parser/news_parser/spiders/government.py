@@ -10,6 +10,17 @@ class GovernmentSpider(scrapy.Spider):
     name = 'government'
     allowed_domains = ['government.ru']
     
+    def __init__(self, *args, **kwargs):
+        super(GovernmentSpider, self).__init__(*args, **kwargs)
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        logging.info(f"Initializing Government spider for dates: {self.target_dates}")
+    
     def start_requests(self):
         """
         Generate requests for today's and yesterday's news
@@ -22,13 +33,14 @@ class GovernmentSpider(scrapy.Spider):
         for date in [yesterday, today]:
             date_str = date.strftime('%d.%m.%Y')
             url = f'http://government.ru/news/?dt.since={date_str}&dt.till={date_str}'
-            urls.append((url, date_str))
+            urls.append((url, date_str, date))
         
-        for url, date_str in urls:
+        for url, date_str, date_obj in urls:
+            logging.info(f"Will fetch government news for {date_str}: {url}")
             yield scrapy.Request(
                 url=url,
                 callback=self.parse,
-                meta={'date': date_str},
+                meta={'date': date_str, 'date_obj': date_obj},
                 headers={
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
                     'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
@@ -47,12 +59,91 @@ class GovernmentSpider(scrapy.Spider):
         'HTTPPROXY_ENABLED': False
     }
 
+    def parse_date(self, date_text, datetime_str=None):
+        """Parse various date formats from government.ru"""
+        if not date_text and not datetime_str:
+            return None
+            
+        # Try datetime attribute first (most reliable)
+        if datetime_str:
+            try:
+                # Parse datetime like "2025-06-20T19:00:00+04:00"
+                dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+                logging.info(f"Parsed date from datetime attribute: {dt}")
+                return dt
+            except ValueError:
+                logging.warning(f"Could not parse datetime attribute: {datetime_str}")
+        
+        # Try parsing date text
+        if date_text:
+            date_text = date_text.strip()
+            
+            # Try different date formats
+            date_formats = [
+                '%d.%m.%Y %H:%M',       # Russian format with time
+                '%d.%m.%Y',             # Russian date only
+                '%Y-%m-%d %H:%M:%S',    # ISO format
+                '%Y-%m-%d',             # Date only
+            ]
+            
+            for fmt in date_formats:
+                try:
+                    parsed_date = datetime.strptime(date_text, fmt)
+                    logging.info(f"Parsed date from text using format '{fmt}': {parsed_date}")
+                    return parsed_date
+                except ValueError:
+                    continue
+            
+            # Try to extract date from text patterns
+            today = datetime.now()
+            yesterday = today - timedelta(days=1)
+            
+            # Russian relative dates
+            if 'сегодня' in date_text.lower():
+                # Extract time if present
+                time_match = re.search(r'(\d{1,2}):(\d{2})', date_text)
+                if time_match:
+                    hour, minute = map(int, time_match.groups())
+                    return today.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                return today
+            
+            if 'вчера' in date_text.lower():
+                # Extract time if present
+                time_match = re.search(r'(\d{1,2}):(\d{2})', date_text)
+                if time_match:
+                    hour, minute = map(int, time_match.groups())
+                    return yesterday.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                return yesterday
+            
+            # Russian month names
+            russian_months = {
+                'января': 1, 'февраля': 2, 'марта': 3, 'апреля': 4,
+                'мая': 5, 'июня': 6, 'июля': 7, 'августа': 8,
+                'сентября': 9, 'октября': 10, 'ноября': 11, 'декабря': 12
+            }
+            
+            for month_name, month_num in russian_months.items():
+                if month_name in date_text.lower():
+                    # Pattern: "15 декабря 2023" or "15 декабря"
+                    match = re.search(r'(\d{1,2})\s+' + month_name + r'\s*(\d{4})?', date_text)
+                    if match:
+                        day = int(match.group(1))
+                        year = int(match.group(2)) if match.group(2) else today.year
+                        return datetime(year, month_num, day)
+        
+        logging.warning(f"Could not parse date: text='{date_text}', datetime='{datetime_str}'")
+        return None
+
     def parse(self, response):
         date_str = response.meta.get('date', 'unknown')
+        date_obj = response.meta.get('date_obj')
         logging.info(f"Parsing government news for date: {date_str}")
         
         # Save the HTML for inspection
-       
+        # with open(f'government_news_{date_str.replace(".", "_")}.html', 'w', encoding='utf-8') as f:
+        #     f.write(response.text)
+        logging.info(f"Saved HTML to government_news_{date_str.replace('.', '_')}.html")
+        
         soup = BeautifulSoup(response.text, 'html.parser')
         
         # Find all news items using the correct selectors
@@ -71,6 +162,19 @@ class GovernmentSpider(scrapy.Spider):
                 
             date_text = time_tag.get_text(strip=True)
             datetime_attr = time_tag.get('datetime', '')
+            
+            # Parse the date
+            parsed_date = self.parse_date(date_text, datetime_attr)
+            if not parsed_date:
+                # If we can't parse the date, use the date from the URL
+                parsed_date = date_obj
+                logging.info(f"Using date from URL for article: {parsed_date}")
+            
+            # Check if the date is from today or yesterday
+            date_str_check = parsed_date.strftime('%Y-%m-%d')
+            if date_str_check not in self.target_dates:
+                logging.debug(f"Skipping article from {date_str_check} (not today or yesterday)")
+                continue
             
             # Find the parent container that contains both date and title
             parent = date_span.parent
@@ -95,13 +199,14 @@ class GovernmentSpider(scrapy.Spider):
                 'date': date_text,
                 'datetime': datetime_attr,
                 'title': title,
-                'url': article_url
+                'url': article_url,
+                'parsed_date': parsed_date
             }
             
             news_items.append(news_item)
-            logging.info(f"Found news item: {date_text} - {title[:50]}...")
+            logging.info(f"Found news item from {date_str_check}: {title[:50]}...")
         
-        logging.info(f"Found {len(news_items)} news items for date {date_str}")
+        logging.info(f"Found {len(news_items)} relevant news items for date {date_str}")
         
         # Process each news item
         for item in news_items:
@@ -112,7 +217,8 @@ class GovernmentSpider(scrapy.Spider):
                     'date': item['date'],
                     'datetime': item['datetime'],
                     'title': item['title'],
-                    'url': item['url']
+                    'url': item['url'],
+                    'parsed_date': item['parsed_date']
                 }
             )
 
@@ -121,12 +227,11 @@ class GovernmentSpider(scrapy.Spider):
         datetime_str = response.meta.get('datetime', '')
         title = response.meta.get('title', '')
         url = response.meta.get('url', response.url)
+        parsed_date = response.meta.get('parsed_date')
         
         logging.info(f"Parsing government article: {url}")
         
         soup = BeautifulSoup(response.text, 'html.parser')
-        
-        
         
         # Extract the article headline using the correct selector
         headline_tag = soup.find('h3', class_='reader_article_headline')
@@ -146,11 +251,11 @@ class GovernmentSpider(scrapy.Spider):
         else:
             logging.warning("Could not find reader_article_body div")
         
-        # Parse the datetime to get proper timestamp
-        published_at = int(datetime.now().timestamp())
-        published_at_iso = datetime.now().isoformat()
-        
-        if datetime_str:
+        # Use parsed date if available, otherwise parse datetime string
+        if parsed_date:
+            published_at = int(parsed_date.timestamp())
+            published_at_iso = parsed_date.isoformat()
+        elif datetime_str:
             try:
                 # Parse datetime like "2025-06-20T19:00:00+04:00"
                 dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
@@ -158,6 +263,11 @@ class GovernmentSpider(scrapy.Spider):
                 published_at_iso = dt.isoformat()
             except ValueError:
                 logging.warning(f"Could not parse datetime: {datetime_str}")
+                published_at = int(datetime.now().timestamp())
+                published_at_iso = datetime.now().isoformat()
+        else:
+            published_at = int(datetime.now().timestamp())
+            published_at_iso = datetime.now().isoformat()
         
         # Create article with required structure matching Note.md format
         article = NewsArticle()
@@ -174,6 +284,12 @@ class GovernmentSpider(scrapy.Spider):
             'parsed_at': int(datetime.now().timestamp())
         }
         
-        logging.info(f"Yielding article: {url} with ID: {article['id']}")
+        # Log the date information
+        if parsed_date:
+            date_str = parsed_date.strftime('%Y-%m-%d')
+            logging.info(f"Yielding article from {date_str}: {url} with ID: {article['id']}")
+        else:
+            logging.info(f"Yielding article (date unknown): {url} with ID: {article['id']}")
+        
         logging.info(f"Article text length: {len(article_text)} characters")
         yield article 

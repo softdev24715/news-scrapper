@@ -50,11 +50,15 @@ class GraininfoSpider(Spider):
     
     def __init__(self, *args, **kwargs):
         super(GraininfoSpider, self).__init__(*args, **kwargs)
-        # Get today's date for filtering
+        # Get today's and yesterday's dates for filtering
         today = datetime.now()
-        self.target_date = today.strftime('%Y-%m-%d')
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
         
-        logging.info(f"Initializing Graininfo spider for date: {self.target_date}")
+        logging.info(f"Initializing Graininfo spider for dates: {self.target_dates}")
         logging.info(f"Current processed URLs count: {len(self.processed_urls)}")
 
     def parse(self, response):
@@ -99,9 +103,16 @@ class GraininfoSpider(Spider):
                 try:
                     # Parse RFC 822 date format
                     dt = datetime.strptime(date_elem.text, '%a, %d %b %Y %H:%M:%S %z')
+                    date_str = dt.strftime('%Y-%m-%d')
+                    
+                    # Only process today's and yesterday's articles
+                    if date_str not in self.target_dates:
+                        logging.debug(f"Skipping article from {date_str} (not today or yesterday): {url}")
+                        continue
+                    
                     published_at = int(dt.timestamp())
                     published_at_iso = dt.isoformat()
-                    logging.info(f"Parsed date: {published_at_iso}")
+                    logging.info(f"Processing article from {date_str}: {url}")
                 except Exception as e:
                     logging.error(f"Error parsing date {date_elem.text}: {e}")
                     continue
@@ -162,6 +173,7 @@ class GraininfoSpider(Spider):
                 logging.info(f"Processing article: {url}")
                 logging.info(f"Title found: {title.text}")
                 logging.info(f"Text length: {len(article['text'])}")
+                logging.info(f"Article date: {date_str}")
                 
                 yield article
                 
@@ -191,8 +203,16 @@ class GraininfoSpider(Spider):
                     
                 try:
                     dt = datetime.strptime(date_elem.text, '%a, %d %b %Y %H:%M:%S %z')
+                    date_str = dt.strftime('%Y-%m-%d')
+                    
+                    # Only process today's and yesterday's articles
+                    if date_str not in self.target_dates:
+                        logging.debug(f"Skipping article from {date_str} (not today or yesterday): {url}")
+                        continue
+                    
                     published_at = int(dt.timestamp())
                     published_at_iso = dt.isoformat()
+                    logging.info(f"Processing article from {date_str}: {url}")
                 except Exception as e:
                     logging.error(f"Error parsing date {date_elem.text}: {e}")
                     continue
@@ -248,6 +268,7 @@ class GraininfoSpider(Spider):
                 logging.info(f"Processing article: {url}")
                 logging.info(f"Title found: {title.text}")
                 logging.info(f"Text length: {len(article['text'])}")
+                logging.info(f"Article date: {date_str}")
                 
                 yield article
 
