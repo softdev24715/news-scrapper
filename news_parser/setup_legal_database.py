@@ -38,14 +38,11 @@ def setup_database():
                     id VARCHAR PRIMARY KEY,
                     text TEXT NOT NULL,
                     source VARCHAR NOT NULL,
-                    url VARCHAR UNIQUE NOT NULL,
-                    header VARCHAR NOT NULL,
                     published_at INTEGER NOT NULL,
                     published_at_iso TIMESTAMP NOT NULL,
+                    url VARCHAR UNIQUE NOT NULL,
+                    header VARCHAR NOT NULL,
                     parsed_at INTEGER NOT NULL,
-                    author VARCHAR,
-                    categories JSONB,
-                    images JSONB,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )

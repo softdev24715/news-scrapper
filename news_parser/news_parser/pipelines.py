@@ -160,28 +160,35 @@ class PostgreSQLPipeline:
         return item
 
     def _save_news_article(self, item_dict):
-        """Save a news article to the articles table - matches exact spider structure"""
+        """Save a news article to the articles table - using flattened structure"""
         try:
+            metadata = item_dict['metadata']
+            
             article = Article(
                 id=item_dict['id'],
                 text=item_dict['text'],
-                article_metadata=item_dict['metadata']
+                source=metadata.get('source', ''),
+                published_at=metadata.get('published_at'),
+                published_at_iso=metadata.get('published_at_iso'),
+                url=metadata.get('url', ''),
+                header=metadata.get('header', ''),
+                parsed_at=metadata.get('parsed_at')
             )
             
             self.session.add(article)
             self.session.commit()
             
             # Extract source and URL for logging
-            source = item_dict['metadata'].get('source', '')
-            url = item_dict['metadata'].get('url', '')
+            source = metadata.get('source', '')
+            url = metadata.get('url', '')
             logging.info(f"✅ Saved news article: {source} - {url[:50]}...")
             return True
             
         except IntegrityError as e:
             self.session.rollback()
             self.duplicates_found += 1
-            source = item_dict['metadata'].get('source', '')
-            url = item_dict['metadata'].get('url', '')
+            source = metadata.get('source', '')
+            url = metadata.get('url', '')
             logging.warning(f"🔄 Duplicate news article: {source} - {url[:50]}...")
             return False
         except SQLAlchemyError as e:
@@ -194,28 +201,43 @@ class PostgreSQLPipeline:
             return False
 
     def _save_legal_document(self, item_dict):
-        """Save a legal document to the legal_documents table - matches exact spider structure"""
+        """Save a legal document to the legal_documents table - using flattened structure"""
         try:
+            law_metadata = item_dict['lawMetadata']
+            
             legal_doc = LegalDocument(
                 id=item_dict['id'],
                 text=item_dict['text'],
-                law_metadata=item_dict['lawMetadata']
+                original_id=law_metadata.get('originalId'),
+                doc_kind=law_metadata.get('docKind'),
+                title=law_metadata.get('title'),
+                source=law_metadata.get('source', ''),
+                url=law_metadata.get('url', ''),
+                published_at=law_metadata.get('publishedAt'),
+                parsed_at=law_metadata.get('parsedAt'),
+                jurisdiction=law_metadata.get('jurisdiction'),
+                language=law_metadata.get('language'),
+                stage=law_metadata.get('stage'),
+                discussion_period=law_metadata.get('discussionPeriod'),
+                explanatory_note=law_metadata.get('explanatoryNote'),
+                summary_reports=law_metadata.get('summaryReports'),
+                comment_stats=law_metadata.get('commentStats')
             )
             
             self.session.add(legal_doc)
             self.session.commit()
             
             # Extract source and URL for logging
-            source = item_dict['lawMetadata'].get('source', '')
-            url = item_dict['lawMetadata'].get('url', '')
+            source = law_metadata.get('source', '')
+            url = law_metadata.get('url', '')
             logging.info(f"✅ Saved legal document: {source} - {url[:50]}...")
             return True
             
         except IntegrityError as e:
             self.session.rollback()
             self.duplicates_found += 1
-            source = item_dict['lawMetadata'].get('source', '')
-            url = item_dict['lawMetadata'].get('url', '')
+            source = law_metadata.get('source', '')
+            url = law_metadata.get('url', '')
             logging.warning(f"🔄 Duplicate legal document: {source} - {url[:50]}...")
             return False
         except SQLAlchemyError as e:
@@ -311,10 +333,25 @@ class LegalDocumentsPipeline:
             if 'lawMetadata' not in item_dict:
                 return item
             
+            law_metadata = item_dict['lawMetadata']
+            
             legal_doc = LegalDocument(
                 id=item_dict['id'],
                 text=item_dict['text'],
-                law_metadata=item_dict['lawMetadata']
+                original_id=law_metadata.get('originalId'),
+                doc_kind=law_metadata.get('docKind'),
+                title=law_metadata.get('title'),
+                source=law_metadata.get('source', ''),
+                url=law_metadata.get('url', ''),
+                published_at=law_metadata.get('publishedAt'),
+                parsed_at=law_metadata.get('parsedAt'),
+                jurisdiction=law_metadata.get('jurisdiction'),
+                language=law_metadata.get('language'),
+                stage=law_metadata.get('stage'),
+                discussion_period=law_metadata.get('discussionPeriod'),
+                explanatory_note=law_metadata.get('explanatoryNote'),
+                summary_reports=law_metadata.get('summaryReports'),
+                comment_stats=law_metadata.get('commentStats')
             )
             
             self.session.add(legal_doc)
@@ -324,8 +361,8 @@ class LegalDocumentsPipeline:
         except IntegrityError as e:
             self.session.rollback()
             # Extract source and URL for better error logging
-            source = item_dict['lawMetadata'].get('source', '')
-            url = item_dict['lawMetadata'].get('url', '')
+            source = law_metadata.get('source', '')
+            url = law_metadata.get('url', '')
             logging.warning(f"Duplicate legal document found: {source}:{url}")
         except Exception as e:
             self.session.rollback()
