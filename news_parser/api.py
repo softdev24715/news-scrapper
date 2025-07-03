@@ -65,7 +65,7 @@ def run_spider(spider_name: str, task_id: str):
         process.start()
         
         # Update task status
-        spider_tasks[task_id]["status"] = "completed"
+        spider_tasks[task_id]["status"] = "finished"
         spider_tasks[task_id]["progress"] = 100.0
         
         # Read results from output file

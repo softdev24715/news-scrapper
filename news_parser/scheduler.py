@@ -131,7 +131,7 @@ def run_spider_with_monitoring(spider_name):
             now = datetime.utcnow()
             
             if process.returncode == 0:
-                update_spider_status(spider_name, 'completed', now)
+                update_spider_status(spider_name, 'scheduled', now)
                 logger.info(f"Spider {spider_name} finished successfully.")
             else:
                 update_spider_status(spider_name, 'error', now)
