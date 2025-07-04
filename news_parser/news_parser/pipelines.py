@@ -268,27 +268,18 @@ class PostgreSQLPipeline:
                 logging.info(f"   - Items failed: {self.items_failed}")
                 logging.info(f"   - Duplicates found: {self.duplicates_found}")
                 
-                # Check if spider was manually stopped before setting to idle
-                result = self.session.execute(
-                    text("SELECT status FROM spider_status WHERE name = :name"),
+                # Always update running_status to 'idle' when spider completes successfully
+                # (running_status is operational state, independent of manual control status)
+                self.session.execute(
+                    text("""
+                        UPDATE spider_status 
+                        SET running_status = 'idle', last_update = NOW() 
+                        WHERE name = :name
+                    """),
                     {"name": spider.name}
                 )
-                current_status = result.scalar()
-                
-                # Only update to 'idle' if not manually disabled
-                if current_status != 'disabled':
-                    self.session.execute(
-                        text("""
-                            UPDATE spider_status 
-                            SET running_status = 'idle', last_update = NOW() 
-                            WHERE name = :name
-                        """),
-                        {"name": spider.name}
-                    )
-                    self.session.commit()
-                    logging.info(f"✅ Updated spider {spider.name} running_status to 'idle' - completed successfully")
-                else:
-                    logging.info(f"✅ Spider {spider.name} was manually stopped, keeping status as 'disabled'")
+                self.session.commit()
+                logging.info(f"✅ Updated spider {spider.name} running_status to 'idle' - completed successfully")
             except Exception as e:
                 self.session.rollback()
                 logging.error(f"❌ Error updating spider running_status to 'idle': {str(e)}")
@@ -392,7 +383,8 @@ class LegalDocumentsPipeline:
     def close_spider(self, spider):
         if self.session:
             try:
-                # Update spider running_status to "idle" (completed successfully)
+                # Always update running_status to 'idle' when spider completes successfully
+                # (running_status is operational state, independent of manual control status)
                 self.session.execute(
                     text("""
                         UPDATE spider_status 

@@ -15,6 +15,19 @@
         .status-error { color: #dc3545; }
         .status-disabled { color: #6c757d; }
         
+        .running-status-running {
+            color: #28a745;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        .running-status-error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .running-status-idle {
+            color: #6c757d;
+        }
+        
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.7; }
@@ -72,6 +85,7 @@
                         <th>No</th>
                         <th>Site URL</th>
                         <th>Status</th>
+                        <th>Running Status</th>
                         <th>Last Update</th>
                         <th>Actions</th>
                     </tr>
@@ -111,28 +125,13 @@
             'eaeu': 'https://docs.eaeunion.org/',
         };
 
-        // Get status display info
-        function getStatusInfo(status, runningStatus) {
-            // Combine status and running_status for display
+        // Get status display info (manual control status only)
+        function getStatusInfo(status) {
+            // Handle manual control status only
             let displayStatus = status;
             let displayClass = '';
             
-            // Priority: running_status takes precedence over status
-            if (runningStatus === 'running') {
-                displayStatus = 'Running';
-                displayClass = 'status-running';
-            } else if (runningStatus === 'error') {
-                displayStatus = 'Error';
-                displayClass = 'status-error';
-            } else if (runningStatus === 'idle') {
-                if (status === 'disabled') {
-                    displayStatus = 'Disabled';
-                    displayClass = 'status-disabled';
-                } else {
-                    displayStatus = 'Scheduled';
-                    displayClass = 'status-scheduled';
-                }
-            } else if (status === 'scheduled') {
+            if (status === 'scheduled') {
                 displayStatus = 'Scheduled';
                 displayClass = 'status-scheduled';
             } else if (status === 'disabled') {
@@ -144,6 +143,17 @@
             }
             
             return { label: displayStatus, class: displayClass };
+        }
+
+        // Get running status display info
+        function getRunningStatusInfo(runningStatus) {
+            if (runningStatus === 'running') {
+                return { label: 'Running', class: 'running-status-running' };
+            } else if (runningStatus === 'error') {
+                return { label: 'Error', class: 'running-status-error' };
+            } else {
+                return { label: 'Idle', class: 'running-status-idle' };
+            }
         }
 
         // Update running count display
@@ -196,22 +206,24 @@
         // Create spider row
         function createSpiderRow(spider, idx) {
             const row = document.createElement('tr');
-            const statusInfo = getStatusInfo(spider.status, spider.running_status);
+            const statusInfo = getStatusInfo(spider.status);
+            const runningStatusInfo = getRunningStatusInfo(spider.running_status);
             const isRunning = spider.running_status === 'running';
             const isScheduled = spider.status === 'scheduled';
             const isDisabled = spider.status === 'disabled';
             const isError = spider.running_status === 'error';
 
             // Button states
-            const startButtonDisabled = isRunning || isScheduled;
-            const stopButtonDisabled = !isRunning;
-            const runButtonDisabled = isRunning || runningSpiders.size >= 5 || isDisabled;
+            const startButtonDisabled = isScheduled;
+            const stopButtonDisabled = isDisabled;
+            const runButtonDisabled = isRunning || runningSpiders.size >= 5;
             const runButtonSpinning = isRunning;
 
             row.innerHTML = `
                 <td>${idx + 1}</td>
                 <td><a href="${spiderSiteMap[spider.name] || '#'}" target="_blank">${spiderSiteMap[spider.name] || spider.name}</a></td>
                 <td class="${statusInfo.class}">${statusInfo.label}</td>
+                <td class="${runningStatusInfo.class}">${runningStatusInfo.label}</td>
                 <td>${spider.last_update ? new Date(spider.last_update).toLocaleString() : ''}</td>
                 <td>
                     <button class="btn btn-sm btn-success" onclick="startSpider('${spider.name}')" 
