@@ -101,20 +101,20 @@ class PostgreSQLPipeline:
         self.session = init_db(self.db_url)
         logging.info(f"Connected to database for spider {spider.name}")
         
-        # Update spider status to 'running' when spider starts
+        # Update spider running_status to 'running' when spider starts
         try:
             self.session.execute(
                 text("""
                     UPDATE spider_status 
-                    SET status = 'running', last_update = NOW() 
+                    SET running_status = 'running', last_update = NOW() 
                     WHERE name = :name
                 """),
                 {"name": spider.name}
             )
             self.session.commit()
-            logging.info(f"Updated spider {spider.name} status to 'running'")
+            logging.info(f"Updated spider {spider.name} running_status to 'running'")
         except Exception as e:
-            logging.error(f"Error updating spider {spider.name} status to 'running': {str(e)}")
+            logging.error(f"Error updating spider {spider.name} running_status to 'running': {str(e)}")
 
     def process_item(self, item, spider):
         self.items_processed += 1
@@ -137,20 +137,29 @@ class PostgreSQLPipeline:
                 if self.items_saved % 10 == 0:
                     logging.info(f"Spider {spider.name}: Saved {self.items_saved} items, processed {self.items_processed}, failed {self.items_failed}, duplicates {self.duplicates_found}")
             
-            # Update spider status to show it's still running (less frequently)
+            # Update spider running_status to show it's still running (less frequently)
             if self.items_saved % 5 == 0:
                 try:
-                    self.session.execute(
-                        text("""
-                            UPDATE spider_status 
-                            SET status = 'running', last_update = NOW() 
-                            WHERE name = :name
-                        """),
+                    # Check current status first - don't update if manually stopped
+                    result = self.session.execute(
+                        text("SELECT status FROM spider_status WHERE name = :name"),
                         {"name": spider.name}
                     )
-                    self.session.commit()
+                    current_status = result.scalar()
+                    
+                    # Only update to 'running' if not manually disabled
+                    if current_status != 'disabled':
+                        self.session.execute(
+                            text("""
+                                UPDATE spider_status 
+                                SET running_status = 'running', last_update = NOW() 
+                                WHERE name = :name
+                            """),
+                            {"name": spider.name}
+                        )
+                        self.session.commit()
                 except Exception as e:
-                    logging.error(f"Error updating spider {spider.name} status: {str(e)}")
+                    logging.error(f"Error updating spider {spider.name} running_status: {str(e)}")
             
         except Exception as e:
             self.items_failed += 1
@@ -259,34 +268,44 @@ class PostgreSQLPipeline:
                 logging.info(f"   - Items failed: {self.items_failed}")
                 logging.info(f"   - Duplicates found: {self.duplicates_found}")
                 
-                # Update spider status to "Scheduled" (completed successfully)
-                self.session.execute(
-                    text("""
-                        UPDATE spider_status 
-                        SET status = 'scheduled', last_update = NOW() 
-                        WHERE name = :name
-                    """),
+                # Check if spider was manually stopped before setting to idle
+                result = self.session.execute(
+                    text("SELECT status FROM spider_status WHERE name = :name"),
                     {"name": spider.name}
                 )
-                self.session.commit()
-                logging.info(f"✅ Updated spider {spider.name} status to 'Scheduled' - completed successfully")
-            except Exception as e:
-                self.session.rollback()
-                logging.error(f"❌ Error updating spider status to 'Scheduled': {str(e)}")
-                # Try to set status to 'error' if we can't set it to 'scheduled'
-                try:
+                current_status = result.scalar()
+                
+                # Only update to 'idle' if not manually disabled
+                if current_status != 'disabled':
                     self.session.execute(
                         text("""
                             UPDATE spider_status 
-                            SET status = 'error', last_update = NOW() 
+                            SET running_status = 'idle', last_update = NOW() 
                             WHERE name = :name
                         """),
                         {"name": spider.name}
                     )
                     self.session.commit()
-                    logging.info(f"⚠️ Set spider {spider.name} status to 'error' due to failure")
+                    logging.info(f"✅ Updated spider {spider.name} running_status to 'idle' - completed successfully")
+                else:
+                    logging.info(f"✅ Spider {spider.name} was manually stopped, keeping status as 'disabled'")
+            except Exception as e:
+                self.session.rollback()
+                logging.error(f"❌ Error updating spider running_status to 'idle': {str(e)}")
+                # Try to set running_status to 'error' if we can't set it to 'idle'
+                try:
+                    self.session.execute(
+                        text("""
+                            UPDATE spider_status 
+                            SET running_status = 'error', last_update = NOW() 
+                            WHERE name = :name
+                        """),
+                        {"name": spider.name}
+                    )
+                    self.session.commit()
+                    logging.info(f"⚠️ Set spider {spider.name} running_status to 'error' due to failure")
                 except Exception as e2:
-                    logging.error(f"❌ Failed to set spider {spider.name} status to 'error': {str(e2)}")
+                    logging.error(f"❌ Failed to set spider {spider.name} running_status to 'error': {str(e2)}")
             finally:
                 self.session.close()
                 logging.info(f"🔌 Closed database connection for spider {spider.name}")
@@ -309,20 +328,20 @@ class LegalDocumentsPipeline:
         self.session = init_db(self.db_url)
         logging.info(f"Connected to database for legal documents spider {spider.name}")
         
-        # Update spider status to 'running' when spider starts
+        # Update spider running_status to 'running' when spider starts
         try:
             self.session.execute(
                 text("""
                     UPDATE spider_status 
-                    SET status = 'running', last_update = NOW() 
+                    SET running_status = 'running', last_update = NOW() 
                     WHERE name = :name
                 """),
                 {"name": spider.name}
             )
             self.session.commit()
-            logging.info(f"Updated legal documents spider {spider.name} status to 'running'")
+            logging.info(f"Updated legal documents spider {spider.name} running_status to 'running'")
         except Exception as e:
-            logging.error(f"Error updating legal documents spider {spider.name} status to 'running': {str(e)}")
+            logging.error(f"Error updating legal documents spider {spider.name} running_status to 'running': {str(e)}")
 
     def process_item(self, item, spider):
         try:
@@ -373,34 +392,34 @@ class LegalDocumentsPipeline:
     def close_spider(self, spider):
         if self.session:
             try:
-                # Update spider status to "Scheduled" (completed successfully)
+                # Update spider running_status to "idle" (completed successfully)
                 self.session.execute(
                     text("""
                         UPDATE spider_status 
-                        SET status = 'scheduled', last_update = NOW() 
+                        SET running_status = 'idle', last_update = NOW() 
                         WHERE name = :name
                     """),
                     {"name": spider.name}
                 )
                 self.session.commit()
-                logging.info(f"Updated legal documents spider {spider.name} status to 'Scheduled' - completed successfully")
+                logging.info(f"Updated legal documents spider {spider.name} running_status to 'idle' - completed successfully")
             except Exception as e:
                 self.session.rollback()
-                logging.error(f"Error updating legal documents spider status to 'scheduled': {str(e)}")
-                # Try to set status to 'error' if we can't set it to 'scheduled'
+                logging.error(f"Error updating legal documents spider running_status to 'idle': {str(e)}")
+                # Try to set running_status to 'error' if we can't set it to 'idle'
                 try:
                     self.session.execute(
                         text("""
                             UPDATE spider_status 
-                            SET status = 'error', last_update = NOW() 
+                            SET running_status = 'error', last_update = NOW() 
                             WHERE name = :name
                         """),
                         {"name": spider.name}
                     )
                     self.session.commit()
-                    logging.info(f"Set legal documents spider {spider.name} status to 'error' due to failure")
+                    logging.info(f"Set legal documents spider {spider.name} running_status to 'error' due to failure")
                 except Exception as e2:
-                    logging.error(f"Failed to set legal documents spider {spider.name} status to 'error': {str(e2)}")
+                    logging.error(f"Failed to set legal documents spider {spider.name} running_status to 'error': {str(e2)}")
             finally:
                 self.session.close()
                 logging.info(f"Closed database connection for legal documents spider {spider.name}")

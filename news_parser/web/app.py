@@ -124,13 +124,14 @@ def get_spider_status():
     """Get status of all spiders from database"""
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT name, status, last_update FROM spider_status"))
+            result = conn.execute(text("SELECT name, status, running_status, last_update FROM spider_status"))
             spiders = []
             for row in result:
                 spider = {
                     'name': row[0],
                     'status': row[1],
-                    'last_update': row[2].isoformat() if row[2] else None
+                    'running_status': row[2],
+                    'last_update': row[3].isoformat() if row[3] else None
                 }
                 spiders.append(spider)
             return spiders
@@ -139,7 +140,7 @@ def get_spider_status():
         return []
 
 def update_spider_status(spiders, status):
-    """Update status for specified spiders"""
+    """Update manual control status for specified spiders"""
     try:
         with engine.connect() as conn:
             if not spiders:  # Update all spiders
@@ -156,12 +157,24 @@ def update_spider_status(spiders, status):
         return False
 
 def set_spider_status(name, status):
+    """Set manual control status for a spider"""
     with engine.connect() as conn:
         conn.execute(text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'), {
             'status': status,
             'last_update': datetime.utcnow(),
             'name': name
         })
+        conn.commit()
+
+def set_spider_running_status(name, running_status):
+    """Set operational status for a spider"""
+    with engine.connect() as conn:
+        conn.execute(text('UPDATE spider_status SET running_status=:running_status, last_update=:last_update WHERE name=:name'), {
+            'running_status': running_status,
+            'last_update': datetime.utcnow(),
+            'name': name
+        })
+        conn.commit()
 
 def run_spider(spider_name):
     """Run a specific spider"""
@@ -190,12 +203,13 @@ def run_spider(spider_name):
 @app.route('/api/spiders', methods=['GET'])
 def get_spiders():
     with engine.connect() as conn:
-        result = conn.execute(text('SELECT name, status, last_update FROM spider_status ORDER BY name'))
+        result = conn.execute(text('SELECT name, status, running_status, last_update FROM spider_status ORDER BY name'))
         spiders = [
             {
                 'name': row[0],
                 'status': row[1],
-                'last_update': row[2].isoformat() if row[2] else None
+                'running_status': row[2],
+                'last_update': row[3].isoformat() if row[3] else None
             }
             for row in result
         ]
@@ -222,14 +236,14 @@ def update_spider_status_api(name):
 @app.route('/api/spiders/<name>/run', methods=['POST'])
 def run_spider_api(name):
     try:
-        set_spider_status(name, 'running')
+        set_spider_running_status(name, 'running')
         subprocess.Popen([
             PYTHON_PATH, '-m', 'scrapy', 'crawl', name
         ], cwd=SCRAPY_PROJECT_PATH)
         return jsonify({'success': True, 'message': f'{name} spider running successful'})
     except Exception as e:
         logger.error(f"Error running spider {name}: {str(e)}", exc_info=True)
-        set_spider_status(name, 'error')
+        set_spider_running_status(name, 'error')
         return jsonify({'success': False, 'message': f'Error running spider {name}: {str(e)}'}), 500
 
 @app.route('/api/articles', methods=['GET'])
@@ -307,6 +321,8 @@ def get_stats():
 def get_status_color(status):
     if status == 'running':
         return 'green'
+    elif status == 'idle':
+        return 'blue'  # Same as scheduled for idle spiders
     elif status == 'scheduled':
         return 'blue'
     elif status == 'disabled':
@@ -323,7 +339,7 @@ def index():
         # Get spider statuses
         with engine.connect() as conn:
             result = conn.execute(text("""
-                SELECT name, status, last_update 
+                SELECT name, status, running_status, last_update 
                 FROM spider_status 
                 ORDER BY name
             """))
@@ -332,7 +348,8 @@ def index():
                 spider = {
                     'name': row[0],
                     'status': row[1],
-                    'last_update': row[2]
+                    'running_status': row[2],
+                    'last_update': row[3]
                 }
                 spiders.append(spider)
             
@@ -342,7 +359,8 @@ def index():
                     spider['last_update'] = spider['last_update'].strftime('%Y-%m-%d %H:%M:%S')
                 else:
                     spider['last_update'] = 'Never'
-                spider['color'] = get_status_color(spider['status'])
+                # Use running_status for color display
+                spider['color'] = get_status_color(spider['running_status'])
             
             return render_template('index.html', spiders=spiders)
     except Exception as e:
@@ -352,12 +370,13 @@ def index():
 @app.route('/dashboard', methods=['GET'])
 def dashboard():
     with engine.connect() as conn:
-        result = conn.execute(text('SELECT name, status, last_update FROM spider_status ORDER BY name'))
+        result = conn.execute(text('SELECT name, status, running_status, last_update FROM spider_status ORDER BY name'))
         spiders = [
             {
                 'name': row[0],
                 'status': row[1],
-                'last_update': row[2].strftime('%d/%m/%Y %H:%M') if row[2] else None
+                'running_status': row[2],
+                'last_update': row[3].strftime('%d/%m/%Y %H:%M') if row[3] else None
             }
             for row in result
         ]
@@ -367,14 +386,14 @@ def dashboard():
 def dashboard_run_spider(name):
     # Trigger the spider run (sync call)
     try:
-        # Immediately set status to 'running' for instant feedback
-        set_spider_status(name, 'running')
+        # Immediately set running_status to 'running' for instant feedback
+        set_spider_running_status(name, 'running')
         subprocess.Popen([
             PYTHON_PATH, '-m', 'scrapy', 'crawl', name
         ], cwd=SCRAPY_PROJECT_PATH)
         return redirect(url_for('dashboard'))
     except Exception as e:
-        set_spider_status(name, 'error')
+        set_spider_running_status(name, 'error')
         return redirect(url_for('dashboard'))
 
 @app.route('/dashboard/stop/<name>', methods=['POST'])
@@ -389,13 +408,13 @@ def dashboard_run_all():
         names = [row[0] for row in result]
     for name in names:
         try:
-            # Immediately set status to 'running' for instant feedback
-            set_spider_status(name, 'running')
+            # Immediately set running_status to 'running' for instant feedback
+            set_spider_running_status(name, 'running')
             subprocess.Popen([
                 PYTHON_PATH, '-m', 'scrapy', 'crawl', name
             ], cwd=SCRAPY_PROJECT_PATH)
         except Exception as e:
-            set_spider_status(name, 'error')
+            set_spider_running_status(name, 'error')
     return redirect(url_for('dashboard'))
 
 @app.route('/dashboard/stop_all', methods=['POST'])
@@ -436,7 +455,7 @@ def run_spiders_immediate():
     try:
         # Immediately set all spiders to 'running' status for instant feedback
         for name in spiders:
-            set_spider_status(name, 'running')
+            set_spider_running_status(name, 'running')
         
         # Then start the spider processes
         for name in spiders:
@@ -448,7 +467,7 @@ def run_spiders_immediate():
         logger.error(f"Error running spiders: {str(e)}", exc_info=True)
         # If there's an error, set status back to 'error'
         for name in spiders:
-            set_spider_status(name, 'error')
+            set_spider_running_status(name, 'error')
         return jsonify({'success': False, 'message': f'Error running spiders: {str(e)}'}), 500
 
 @app.route('/health')

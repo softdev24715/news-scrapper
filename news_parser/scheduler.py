@@ -91,11 +91,22 @@ def get_scheduled_spiders():
     return spiders
 
 def update_spider_status(name, status, last_update=None):
+    """Update manual control status for a spider"""
     engine = create_engine(DATABASE_URL)
     with engine.connect() as conn:
         conn.execute(
             text('UPDATE spider_status SET status=:status, last_update=:last_update WHERE name=:name'),
             {'status': status, 'last_update': last_update, 'name': name}
+        )
+        conn.commit()
+
+def update_spider_running_status(name, running_status, last_update=None):
+    """Update operational status for a spider"""
+    engine = create_engine(DATABASE_URL)
+    with engine.connect() as conn:
+        conn.execute(
+            text('UPDATE spider_status SET running_status=:running_status, last_update=:last_update WHERE name=:name'),
+            {'running_status': running_status, 'last_update': last_update, 'name': name}
         )
         conn.commit()
 
@@ -112,7 +123,7 @@ def reset_all_spiders_to_scheduled():
 def run_spider_with_monitoring(spider_name):
     """Run a spider and monitor its completion"""
     logger.info(f"Starting spider: {spider_name}")
-    update_spider_status(spider_name, 'running', datetime.utcnow())
+    update_spider_running_status(spider_name, 'running', datetime.utcnow())
     
     try:
         # Start spider process with date range parameters
@@ -131,20 +142,20 @@ def run_spider_with_monitoring(spider_name):
             now = datetime.utcnow()
             
             if process.returncode == 0:
-                update_spider_status(spider_name, 'scheduled', now)
+                update_spider_running_status(spider_name, 'idle', now)
                 logger.info(f"Spider {spider_name} finished successfully.")
             else:
-                update_spider_status(spider_name, 'error', now)
+                update_spider_running_status(spider_name, 'error', now)
                 logger.error(f"Spider {spider_name} failed with return code {process.returncode}.")
                 
         except subprocess.TimeoutExpired:
             logger.error(f"Spider {spider_name} timed out after {SPIDER_TIMEOUT} seconds")
             process.terminate()
-            update_spider_status(spider_name, 'error', datetime.utcnow())
+            update_spider_running_status(spider_name, 'error', datetime.utcnow())
             
     except Exception as e:
         logger.error(f"Error running spider {spider_name}: {str(e)}")
-        update_spider_status(spider_name, 'error', datetime.utcnow())
+        update_spider_running_status(spider_name, 'error', datetime.utcnow())
 
 def run_spider_batch(spider_batch):
     """Run a batch of spiders concurrently"""

@@ -27,7 +27,8 @@ def setup_database():
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS spider_status (
                     name VARCHAR PRIMARY KEY,
-                    status VARCHAR DEFAULT 'enabled',
+                    status VARCHAR DEFAULT 'scheduled',
+                    running_status VARCHAR DEFAULT 'idle',
                     last_update TIMESTAMP(6)
                 )
             """))
@@ -88,13 +89,13 @@ def setup_database():
 
             for spider in all_spiders:
                 conn.execute(text("""
-                    INSERT INTO spider_status (name, status) 
-                    VALUES (:name, 'scheduled') 
-                    ON CONFLICT (name) DO UPDATE SET status = 'scheduled'
+                    INSERT INTO spider_status (name, status, running_status) 
+                    VALUES (:name, 'scheduled', 'idle') 
+                    ON CONFLICT (name) DO UPDATE SET status = 'scheduled', running_status = 'idle'
                 """), {"name": spider})
             
             conn.commit()
-            print("✅ Added all 20 spiders to spider_status with 'scheduled' status")
+            print("✅ Added all 20 spiders to spider_status with 'scheduled' status and 'idle' running_status")
             
             # Show table information
             print("\n📊 Database Tables Created:")
@@ -108,9 +109,9 @@ def setup_database():
             print(f"\n🕷️ Total spiders in database: {spider_count}")
             
             # Show sample spiders
-            result = conn.execute(text("SELECT name, status FROM spider_status LIMIT 5"))
+            result = conn.execute(text("SELECT name, status, running_status FROM spider_status LIMIT 5"))
             sample_spiders = result.fetchall()
-            print(f"📋 Sample spiders: {[f'{s[0]} ({s[1]})' for s in sample_spiders]}")
+            print(f"📋 Sample spiders: {[f'{s[0]} (status: {s[1]}, running: {s[2]})' for s in sample_spiders]}")
             
     except Exception as e:
         print(f"❌ Error setting up database: {str(e)}")

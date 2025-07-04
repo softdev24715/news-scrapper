@@ -3,18 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>News and Legislation Sites Scraping Dashboard</title>
+    <title>News Scraper Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .status-ok { color: green; }
-        .status-error { color: red; }
-        .status-disabled { color: gray; }
         .status-running { 
-            color: green; 
+            color: #28a745; 
             font-weight: bold;
             animation: pulse 2s infinite;
         }
-        .status-scheduled { color: blue; }
+        .status-scheduled { color: #007bff; }
+        .status-error { color: #dc3545; }
+        .status-disabled { color: #6c757d; }
         
         @keyframes pulse {
             0% { opacity: 1; }
@@ -22,30 +21,11 @@
             100% { opacity: 1; }
         }
         
-        /* Disabled button styles */
         .btn:disabled {
             background-color: #6c757d !important;
             border-color: #6c757d !important;
             color: #ffffff !important;
             opacity: 1 !important;
-        }
-        
-        .btn-success:disabled {
-            background-color: #6c757d !important;
-            border-color: #6c757d !important;
-            color: #ffffff !important;
-        }
-        
-        .btn-danger:disabled {
-            background-color: #6c757d !important;
-            border-color: #6c757d !important;
-            color: #ffffff !important;
-        }
-        
-        .btn-primary:disabled {
-            background-color: #6c757d !important;
-            border-color: #6c757d !important;
-            color: #ffffff !important;
         }
         
         .btn-loading {
@@ -68,43 +48,19 @@
             animation: button-loading-spinner 1s ease infinite;
         }
         @keyframes button-loading-spinner {
-            from {
-                transform: rotate(0turn);
-            }
-            to {
-                transform: rotate(1turn);
-            }
-        }
-        
-        .spinner-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-        
-        .spinner-content {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
+            from { transform: rotate(0turn); }
+            to { transform: rotate(1turn); }
         }
     </style>
 </head>
 <body>
     <div class="container mt-4">
-        <h1>News and Legislation Sites Scraping Dashboard</h1>
+        <h1>News Scraper Dashboard</h1>
         
         <div class="row mb-4">
             <div class="col">
-                <button class="btn btn-success" onclick="startAllSpiders()" id="startAllBtn">Start All</button>
-                <button class="btn btn-danger" onclick="stopAllSpiders()" id="stopAllBtn">Stop All</button>
+                <button class="btn btn-success" onclick="startAllSpiders()">Start All</button>
+                <button class="btn btn-danger" onclick="stopAllSpiders()">Stop All</button>
                 <span class="ms-3 text-muted" id="runningCount">Running: 0/5</span>
             </div>
         </div>
@@ -114,7 +70,7 @@
                 <thead>
                     <tr>
                         <th>No</th>
-                        <th>Site Url</th>
+                        <th>Site URL</th>
                         <th>Status</th>
                         <th>Last Update</th>
                         <th>Actions</th>
@@ -127,24 +83,12 @@
         </div>
     </div>
 
-    <!-- Spinner overlay for global operations -->
-    <div class="spinner-overlay" id="spinnerOverlay">
-        <div class="spinner-content">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <p class="mt-2">Running spiders...</p>
-        </div>
-    </div>
-
     <script>
         let runningSpiders = new Set();
-        let lastStatus = {};
-        let buttonGracePeriods = {}; // Track grace periods for buttons
+        let statusPollingInterval;
 
-        // Mapping from spider name to site URL
+        // Spider name to URL mapping
         const spiderSiteMap = {
-            // News spiders
             'tass': 'https://tass.ru/',
             'rbc': 'https://rbc.ru/',
             'kommersant': 'https://kommersant.ru/',
@@ -159,143 +103,115 @@
             'pnp': 'https://pnp.ru/',
             'ria': 'https://ria.ru/',
             'meduza': 'https://meduza.io/',
-            
-            // Government and official spiders
             'kremlin': 'https://kremlin.ru/',
             'government': 'https://government.ru/news/',
             'regulation': 'https://regulation.gov.ru/',
-            
-            // Legal document spiders
             'pravo': 'http://publication.pravo.gov.ru/',
             'sozd': 'https://sozd.duma.gov.ru/',
             'eaeu': 'https://docs.eaeunion.org/',
         };
 
-        // Set grace period for a button (1 minute)
-        function setButtonGracePeriod(spiderName, action) {
-            buttonGracePeriods[spiderName] = {
-                action: action,
-                startTime: Date.now(),
-                duration: 60000 // 1 minute
-            };
-        }
-
-        // Check if button is in grace period
-        function isInGracePeriod(spiderName) {
-            const gracePeriod = buttonGracePeriods[spiderName];
-            if (!gracePeriod) return false;
+        // Get status display info
+        function getStatusInfo(status, runningStatus) {
+            // Combine status and running_status for display
+            let displayStatus = status;
+            let displayClass = '';
             
-            const elapsed = Date.now() - gracePeriod.startTime;
-            if (elapsed > gracePeriod.duration) {
-                // Grace period expired, remove it
-                delete buttonGracePeriods[spiderName];
-                return false;
+            // Priority: running_status takes precedence over status
+            if (runningStatus === 'running') {
+                displayStatus = 'Running';
+                displayClass = 'status-running';
+            } else if (runningStatus === 'error') {
+                displayStatus = 'Error';
+                displayClass = 'status-error';
+            } else if (runningStatus === 'idle') {
+                if (status === 'disabled') {
+                    displayStatus = 'Disabled';
+                    displayClass = 'status-disabled';
+                } else {
+                    displayStatus = 'Scheduled';
+                    displayClass = 'status-scheduled';
+                }
+            } else if (status === 'scheduled') {
+                displayStatus = 'Scheduled';
+                displayClass = 'status-scheduled';
+            } else if (status === 'disabled') {
+                displayStatus = 'Disabled';
+                displayClass = 'status-disabled';
+            } else {
+                displayStatus = status;
+                displayClass = '';
             }
             
-            return true;
+            return { label: displayStatus, class: displayClass };
         }
 
-        // Clear grace period for a spider
-        function clearGracePeriod(spiderName) {
-            delete buttonGracePeriods[spiderName];
+        // Update running count display
+        function updateRunningCount() {
+            const runningCountElement = document.getElementById('runningCount');
+            const currentRunning = runningSpiders.size;
+            runningCountElement.textContent = `Running: ${currentRunning}/5`;
+            
+            if (currentRunning >= 5) {
+                runningCountElement.className = 'ms-3 text-danger fw-bold';
+            } else {
+                runningCountElement.className = 'ms-3 text-muted';
+            }
         }
 
-        // Fetch and display spider status
-        function updateSpiderStatus() {
+        // Fetch spider status from API
+        function fetchSpiderStatus() {
             fetch('/api/scraper/status')
                 .then(response => response.json())
                 .then(data => {
-                    const table = document.getElementById('spiderTable');
-                    
-                    // Check if table is empty (first load)
-                    const isFirstLoad = table.children.length === 0;
-                    
-                    if (isFirstLoad) {
-                        // First load - create all rows
-                        table.innerHTML = '';
-                        data.spiders.forEach((spider, idx) => {
-                            const row = createSpiderRow(spider, idx);
-                            table.appendChild(row);
-                        });
-                    } else {
-                        // Update existing rows - preserve button states
-                        data.spiders.forEach((spider, idx) => {
-                            const existingRow = table.children[idx];
-                            if (existingRow) {
-                                updateSpiderRow(existingRow, spider, idx);
-                            } else {
-                                // New spider added
-                                const row = createSpiderRow(spider, idx);
-                                table.appendChild(row);
-                            }
-                        });
-                        
-                        // Remove extra rows if spiders were removed
-                        while (table.children.length > data.spiders.length) {
-                            table.removeChild(table.lastChild);
-                        }
+                    if (data.success) {
+                        updateSpiderTable(data.spiders);
                     }
-                    
-                    // Update running spiders set based on actual status
-                    data.spiders.forEach(spider => {
-                        if (spider.status === 'running') {
-                            runningSpiders.add(spider.name);
-                        } else {
-                            runningSpiders.delete(spider.name);
-                        }
-                    });
-                    
-                    // Update last status for comparison
-                    lastStatus = data.spiders.reduce((acc, spider) => {
-                        acc[spider.name] = spider.status;
-                        return acc;
-                    }, {});
-                    
-                    // Update running count display and Run All button state
-                    updateRunningCount();
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => console.error('Error fetching status:', error));
         }
 
-        // Create a new spider row
+        // Update spider table with current data
+        function updateSpiderTable(spiders) {
+            const table = document.getElementById('spiderTable');
+            
+            // Update running spiders set
+            runningSpiders.clear();
+            spiders.forEach(spider => {
+                if (spider.running_status === 'running') {
+                    runningSpiders.add(spider.name);
+                }
+            });
+            
+            // Recreate table
+            table.innerHTML = '';
+            spiders.forEach((spider, idx) => {
+                const row = createSpiderRow(spider, idx);
+                table.appendChild(row);
+            });
+            
+            updateRunningCount();
+        }
+
+        // Create spider row
         function createSpiderRow(spider, idx) {
             const row = document.createElement('tr');
-            const isRunning = (spider.status === 'running');
-            const isScheduled = (spider.status === 'scheduled');
-            const isDisabled = (spider.status === 'disabled');
-            const isError = (spider.status === 'error');
+            const statusInfo = getStatusInfo(spider.status, spider.running_status);
+            const isRunning = spider.running_status === 'running';
+            const isScheduled = spider.status === 'scheduled';
+            const isDisabled = spider.status === 'disabled';
+            const isError = spider.running_status === 'error';
 
-            // Map backend status to user-friendly label
-            let statusLabel = '';
-            let statusClass = '';
-            if (isRunning) {
-                statusLabel = 'Running';
-                statusClass = 'status-running';
-            } else if (isScheduled) {
-                statusLabel = 'Scheduled';
-                statusClass = 'status-scheduled';
-            } else if (isDisabled) {
-                statusLabel = 'Disabled';
-                statusClass = 'status-disabled';
-            } else if (isError) {
-                statusLabel = 'Error';
-                statusClass = 'status-error';
-            } else {
-                statusLabel = spider.status;
-                statusClass = '';
-            }
-
-            // Determine button states based on spider status
+            // Button states
             const startButtonDisabled = isRunning || isScheduled;
-            const stopButtonDisabled = isDisabled;
-            const runButtonDisabled = isRunning || runningSpiders.size >= 5;
-            // Show spinning if spider is running (based on actual status)
+            const stopButtonDisabled = !isRunning;
+            const runButtonDisabled = isRunning || runningSpiders.size >= 5 || isDisabled;
             const runButtonSpinning = isRunning;
 
             row.innerHTML = `
                 <td>${idx + 1}</td>
                 <td><a href="${spiderSiteMap[spider.name] || '#'}" target="_blank">${spiderSiteMap[spider.name] || spider.name}</a></td>
-                <td class="${statusClass}">${statusLabel}</td>
+                <td class="${statusInfo.class}">${statusInfo.label}</td>
                 <td>${spider.last_update ? new Date(spider.last_update).toLocaleString() : ''}</td>
                 <td>
                     <button class="btn btn-sm btn-success" onclick="startSpider('${spider.name}')" 
@@ -309,91 +225,12 @@
             return row;
         }
 
-        // Update existing spider row (preserve button states)
-        function updateSpiderRow(row, spider, idx) {
-            const isRunning = (spider.status === 'running');
-            const isScheduled = (spider.status === 'scheduled');
-            const isDisabled = (spider.status === 'disabled');
-            const isError = (spider.status === 'error');
-            const inGracePeriod = isInGracePeriod(spider.name);
-
-            // Map backend status to user-friendly label
-            let statusLabel = '';
-            let statusClass = '';
-            if (isRunning) {
-                statusLabel = 'Running';
-                statusClass = 'status-running';
-            } else if (isScheduled) {
-                statusLabel = 'Scheduled';
-                statusClass = 'status-scheduled';
-            } else if (isDisabled) {
-                statusLabel = 'Disabled';
-                statusClass = 'status-disabled';
-            } else if (isError) {
-                statusLabel = 'Error';
-                statusClass = 'status-error';
-            } else {
-                statusLabel = spider.status;
-                statusClass = '';
-            }
-
-            // Update only the status and last_update cells, preserve button states
-            const cells = row.children;
-            cells[0].textContent = idx + 1; // Number
-            cells[2].textContent = statusLabel; // Status
-            cells[2].className = statusClass;
-            cells[3].textContent = spider.last_update ? new Date(spider.last_update).toLocaleString() : ''; // Last update
-            
-            // Update button states but preserve existing classes (like btn-loading)
-            const startButton = cells[4].children[0];
-            const stopButton = cells[4].children[1];
-            const runButton = cells[4].children[2];
-            
-            // Start button
-            startButton.disabled = isRunning || isScheduled;
-            
-            // Stop button
-            stopButton.disabled = isDisabled;
-            
-            // Run button - respect grace period
-            if (inGracePeriod) {
-                // During grace period, preserve the button state set by user action
-                const gracePeriod = buttonGracePeriods[spider.name];
-                if (gracePeriod.action === 'run') {
-                    // User clicked Run - keep disabled and spinning
-                    runButton.disabled = true;
-                    runButton.classList.add('btn-loading');
-                }
-            } else {
-                // No grace period - update based on actual status
-                runButton.disabled = isRunning || runningSpiders.size >= 5;
-                
-                // Update spinning class based on actual running status
-                if (isRunning) {
-                    runButton.classList.add('btn-loading');
-                } else {
-                    runButton.classList.remove('btn-loading');
-                }
-            }
-        }
-
         // Run specific spider
         function runSpider(spiderName) {
-            // Check if we're already at the limit of 5 running spiders
             if (runningSpiders.size >= 5) {
-                alert('Maximum limit reached! You can only run 5 spiders simultaneously. Please wait for some spiders to complete before running more.');
+                alert('Maximum limit reached! You can only run 5 spiders simultaneously.');
                 return;
             }
-            
-            const runButton = document.getElementById(`run-${spiderName}`);
-            
-            // Set grace period for 1 minute to preserve button state
-            setButtonGracePeriod(spiderName, 'run');
-            
-            // Immediately show spinning and disable button for instant feedback
-            runButton.classList.add('btn-loading');
-            runButton.disabled = true;
-            runningSpiders.add(spiderName);
             
             fetch('/api/scraper/immediate', {
                 method: 'POST',
@@ -403,62 +240,13 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Update status immediately to show running state
-                    updateSpiderStatus();
-                    
-                    // Continue monitoring until spider completes
-                    const checkCompletion = setInterval(() => {
-                        fetch('/api/scraper/status')
-                            .then(response => response.json())
-                            .then(statusData => {
-                                const spider = statusData.spiders.find(s => s.name === spiderName);
-                                if (spider) {
-                                    if (spider.status === 'running') {
-                                        // Spider is now running, clear grace period but keep spinning
-                                        clearGracePeriod(spiderName);
-                                    } else if (spider.status !== 'running') {
-                                        // Spider completed or failed
-                                        clearInterval(checkCompletion);
-                                        runningSpiders.delete(spiderName);
-                                        runButton.classList.remove('btn-loading');
-                                        runButton.disabled = false;
-                                        updateSpiderStatus();
-                                    }
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error checking status:', error);
-                            });
-                    }, 2000); // Check every 2 seconds
-                    
-                    // Fallback timeout - stop monitoring after 10 minutes
-                    setTimeout(() => {
-                        clearInterval(checkCompletion);
-                        runningSpiders.delete(spiderName);
-                        // Clear grace period and remove spinning after timeout
-                        clearGracePeriod(spiderName);
-                        runButton.classList.remove('btn-loading');
-                        runButton.disabled = false;
-                        updateSpiderStatus();
-                    }, 600000); // 10 minutes
+                    // Immediately update status to show running state
+                    fetchSpiderStatus();
                 } else {
-                    // If request failed, clear grace period and remove spinning immediately
-                    clearGracePeriod(spiderName);
-                    runButton.classList.remove('btn-loading');
-                    runButton.disabled = false;
-                    runningSpiders.delete(spiderName);
                     console.error('Failed to start spider:', data.message);
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
-                // Clear grace period and remove spinning on error
-                clearGracePeriod(spiderName);
-                runButton.classList.remove('btn-loading');
-                runButton.disabled = false;
-                runningSpiders.delete(spiderName);
-                updateSpiderStatus();
-            });
+            .catch(error => console.error('Error:', error));
         }
 
         // Start specific spider
@@ -471,7 +259,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    updateSpiderStatus();
+                    fetchSpiderStatus();
                 }
             })
             .catch(error => console.error('Error:', error));
@@ -487,7 +275,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    updateSpiderStatus();
+                    fetchSpiderStatus();
                 }
             })
             .catch(error => console.error('Error:', error));
@@ -503,7 +291,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    updateSpiderStatus();
+                    fetchSpiderStatus();
                 }
             })
             .catch(error => console.error('Error:', error));
@@ -519,32 +307,23 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    updateSpiderStatus();
+                    fetchSpiderStatus();
                 }
             })
             .catch(error => console.error('Error:', error));
         }
 
-
-
-        // Update running count display
-        function updateRunningCount() {
-            const runningCountElement = document.getElementById('runningCount');
+        // Initialize dashboard
+        function initDashboard() {
+            // Initial status fetch
+            fetchSpiderStatus();
             
-            const currentRunning = runningSpiders.size;
-            runningCountElement.textContent = `Running: ${currentRunning}/5`;
-            
-            // Change color when at limit
-            if (currentRunning >= 5) {
-                runningCountElement.className = 'ms-3 text-danger fw-bold';
-            } else {
-                runningCountElement.className = 'ms-3 text-muted';
-            }
+            // Start polling every 2 seconds
+            statusPollingInterval = setInterval(fetchSpiderStatus, 2000);
         }
 
-        // Update status every 5 seconds for more responsive updates
-        updateSpiderStatus();
-        setInterval(updateSpiderStatus, 5000);
+        // Start the dashboard
+        initDashboard();
     </script>
 </body>
 </html> 
