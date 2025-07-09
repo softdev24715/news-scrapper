@@ -17,7 +17,18 @@ class EaeuSpider(scrapy.Spider):
 
     def start_requests(self):
         """Start with the documents page to find pagination and extract documents"""
-        logging.info("Starting to fetch all EAEU documents")
+        # Get today's and yesterday's dates for filtering
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        self.target_dates = [
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
+        ]
+        
+        # Track pagination state
+        self.stop_pagination = False
+        
+        logging.info(f"Starting to fetch EAEU documents from: {self.target_dates}")
         
         # Start with the first page to get pagination info
         yield scrapy.Request(
@@ -32,6 +43,11 @@ class EaeuSpider(scrapy.Spider):
         
         logging.info(f"Parsing documents page: {response.url}")
         
+        # Check if pagination is already stopped FIRST (before any processing)
+        if self.stop_pagination:
+            logging.info(f"Skipping page {response.meta.get('page', 1)} - pagination already stopped")
+            return
+        
         # Save the page HTML for debugging
         # with open(f'eaeu_page_{response.meta.get("page", 1)}.html', 'w', encoding='utf-8') as f:
         #     f.write(response.text)
@@ -42,25 +58,38 @@ class EaeuSpider(scrapy.Spider):
             pagination_info = self.extract_pagination_info(soup)
             if pagination_info:
                 first_page, last_page = pagination_info
+                self.pagination_info = (first_page, last_page)
                 logging.info(f"Found pagination: first page = {first_page}, last page = {last_page}")
-                
-                # Generate requests for all pages
-                for page_num in range(1, last_page + 1):  # Fetch all pages
-                    page_url = f'https://docs.eaeunion.org/documents/?PAGEN_1={page_num}'
-                    logging.info(f"Will visit page {page_num}: {page_url}")
-                    yield scrapy.Request(
-                        url=page_url,
-                        callback=self.parse_documents_page,
-                        meta={'page': page_num}
-                    )
         
         # Extract document links from current page
         document_items = self.extract_document_items(soup, response.url)
         logging.info(f"Found {len(document_items)} document items on page {response.meta.get('page', 1)}")
         
         # Process each document item
-        for item in document_items:
+        for i, item in enumerate(document_items):
+            # Check if we should stop pagination based on document date
+            if self.should_stop_pagination(item):
+                self.stop_pagination = True
+                logging.info(f"Found document older than yesterday, stopping pagination")
+                # Don't yield this item and stop processing
+                break
+            
             yield item
+        
+        # Check if we should continue to next page
+        if not self.stop_pagination:
+            current_page = response.meta.get('page', 1)
+            if self.pagination_info and current_page < self.pagination_info[1]:
+                next_page = current_page + 1
+                page_url = f'https://docs.eaeunion.org/documents/?PAGEN_1={next_page}'
+                logging.info(f"Continuing to page {next_page}: {page_url}")
+                
+                from scrapy import Request
+                yield Request(
+                    url=page_url,
+                    callback=self.parse_documents_page,
+                    meta={'page': next_page}
+                )
 
     def extract_pagination_info(self, soup):
         """Extract first and last page numbers from pagination dynamically"""
@@ -121,6 +150,27 @@ class EaeuSpider(scrapy.Spider):
         
         logging.warning("No page numbers found in pagination")
         return None
+
+    def should_stop_pagination(self, item):
+        """Check if we should stop pagination based on document date"""
+        # Get the publishedAt timestamp from the item
+        published_at = item.get('lawMetadata', {}).get('publishedAt')
+        if not published_at:
+            return False
+        
+        # Convert timestamp to date
+        try:
+            doc_date = datetime.fromtimestamp(published_at).date()
+            yesterday = datetime.now().date() - timedelta(days=1)
+            
+            # If document is older than yesterday, stop pagination
+            if doc_date < yesterday:
+                logging.info(f"Document from {doc_date} is older than yesterday ({yesterday}), should stop pagination")
+                return True
+        except Exception as e:
+            logging.warning(f"Error checking document date: {e}")
+        
+        return False
 
     def extract_document_items(self, soup, page_url):
         """Extract document items from the page"""
