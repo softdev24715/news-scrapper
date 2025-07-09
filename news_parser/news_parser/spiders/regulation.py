@@ -83,7 +83,8 @@ class RegulationSpider(scrapy.Spider):
             yield {
                 'id': str(uuid.uuid4()),
                 'text': title,
-                'lawMetadata': law_metadata
+                'lawMetadata': law_metadata,
+                'files': []
             }
         
         self.logger.info(f"Processed {processed_count} regulations from RSS feed")
