@@ -230,7 +230,8 @@ class PostgreSQLPipeline:
                 discussion_period=law_metadata.get('discussionPeriod'),
                 explanatory_note=law_metadata.get('explanatoryNote'),
                 summary_reports=law_metadata.get('summaryReports'),
-                comment_stats=law_metadata.get('commentStats')
+                comment_stats=law_metadata.get('commentStats'),
+                files=law_metadata.get('files')
             )
             
             self.session.add(legal_doc)
@@ -361,7 +362,8 @@ class LegalDocumentsPipeline:
                 discussion_period=law_metadata.get('discussionPeriod'),
                 explanatory_note=law_metadata.get('explanatoryNote'),
                 summary_reports=law_metadata.get('summaryReports'),
-                comment_stats=law_metadata.get('commentStats')
+                comment_stats=law_metadata.get('commentStats'),
+                files=law_metadata.get('files')
             )
             
             self.session.add(legal_doc)

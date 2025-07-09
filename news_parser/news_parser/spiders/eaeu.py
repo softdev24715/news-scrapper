@@ -16,252 +16,191 @@ class EaeuSpider(scrapy.Spider):
     }
 
     def start_requests(self):
-        """Start with the main page to find latest documents"""
-        # Get today's and yesterday's dates
-        today = datetime.now()
-        yesterday = today - timedelta(days=1)
+        """Start with the documents page to find pagination and extract documents"""
+        logging.info("Starting to fetch all EAEU documents")
         
-        # Format dates for URL parameters (if needed)
-        today_str = today.strftime('%d.%m.%Y')
-        yesterday_str = yesterday.strftime('%d.%m.%Y')
-        
-        logging.info(f"Looking for documents from {yesterday_str} and {today_str}")
-        
-        # Start with the main page
+        # Start with the first page to get pagination info
         yield scrapy.Request(
-            url='https://docs.eaeunion.org/',
-            callback=self.parse_main_page,
-            meta={'today': today_str, 'yesterday': yesterday_str}
+            url='https://docs.eaeunion.org/documents/?PAGEN_1=1',
+            callback=self.parse_documents_page,
+            meta={'page': 1}
         )
-        
-        # Also try to access search/filter pages if they exist
-        # Try different possible search URLs
-        search_urls = [
-            'https://docs.eaeunion.org/search/',
-            'https://docs.eaeunion.org/documents/',
-            'https://docs.eaeunion.org/filter/',
-        ]
-        
-        for search_url in search_urls:
-            yield scrapy.Request(
-                url=search_url,
-                callback=self.parse_search_page,
-                meta={'today': today_str, 'yesterday': yesterday_str, 'search_url': search_url}
-            )
 
-    def parse_main_page(self, response):
-        """Parse the main page to find latest document links"""
+    def parse_documents_page(self, response):
+        """Parse documents page to extract pagination and document links"""
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        logging.info(f"Parsing main page: {response.url}")
+        logging.info(f"Parsing documents page: {response.url}")
         
         # Save the page HTML for debugging
-        # with open('eaeu_main_page.html', 'w', encoding='utf-8') as f:
+        # with open(f'eaeu_page_{response.meta.get("page", 1)}.html', 'w', encoding='utf-8') as f:
         #     f.write(response.text)
-        logging.info("Saved main page HTML to eaeu_main_page.html")
+        logging.info(f"Saved page HTML to eaeu_page_{response.meta.get('page', 1)}.html")
         
-        # Look for document links - try different patterns
-        doc_links = []
+        # Extract pagination info from the first page only
+        if response.meta.get('page', 1) == 1:
+            pagination_info = self.extract_pagination_info(soup)
+            if pagination_info:
+                first_page, last_page = pagination_info
+                logging.info(f"Found pagination: first page = {first_page}, last page = {last_page}")
+                
+                # Generate requests for all pages
+                for page_num in range(1, last_page + 1):  # Fetch all pages
+                    page_url = f'https://docs.eaeunion.org/documents/?PAGEN_1={page_num}'
+                    logging.info(f"Will visit page {page_num}: {page_url}")
+                    yield scrapy.Request(
+                        url=page_url,
+                        callback=self.parse_documents_page,
+                        meta={'page': page_num}
+                    )
         
-        # Pattern 1: Direct document links
-        links = soup.find_all('a', href=re.compile(r'/documents/\d+/'))
-        doc_links.extend(links)
+        # Extract document links from current page
+        document_items = self.extract_document_items(soup, response.url)
+        logging.info(f"Found {len(document_items)} document items on page {response.meta.get('page', 1)}")
         
-        # Pattern 2: Links with document IDs
-        links = soup.find_all('a', href=re.compile(r'/documents/'))
-        doc_links.extend(links)
-        
-        # Pattern 3: Any links that might be documents
-        links = soup.find_all('a', href=True)
-        for link in links:
-            href = link.get('href', '')
-            if '/documents/' in href or 'doc' in href.lower():
-                doc_links.append(link)
-        
-        # Remove duplicates
-        unique_links = []
-        seen_urls = set()
-        for link in doc_links:
-            url = response.urljoin(link['href'])
-            if url not in seen_urls:
-                seen_urls.add(url)
-                unique_links.append(link)
-        
-        logging.info(f"Found {len(unique_links)} unique document links from main page")
-        
-        # Visit each document detail page
-        for link in unique_links[:10]:  # Increased limit to get more documents
-            doc_url = response.urljoin(link['href'])
-            logging.info(f"Will visit document URL: {doc_url}")
-            yield scrapy.Request(
-                url=doc_url,
-                callback=self.parse_document,
-                meta={'doc_url': doc_url, 'source': 'main_page'}
-            )
+        # Process each document item
+        for item in document_items:
+            yield item
 
-    def parse_search_page(self, response):
-        """Parse search/filter pages to find documents"""
-        soup = BeautifulSoup(response.text, 'html.parser')
+    def extract_pagination_info(self, soup):
+        """Extract first and last page numbers from pagination dynamically"""
+        pagination_div = soup.find('div', class_='modern-page-navigation')
+        if not pagination_div:
+            logging.warning("Pagination div not found")
+            return None
         
-        logging.info(f"Parsing search page: {response.url}")
+        page_numbers = set()  # Use set to avoid duplicates
         
-        # Save the search page HTML for debugging
-        search_page_name = response.url.split('/')[-2] if response.url.split('/')[-2] else 'search'
-        # with open(f'eaeu_{search_page_name}_page.html', 'w', encoding='utf-8') as f:
-        #     f.write(response.text)
-        logging.info(f"Saved search page HTML to eaeu_{search_page_name}_page.html")
-        
-        # Look for document links on search pages
-        doc_links = []
-        
-        # Pattern 1: Direct document links
-        links = soup.find_all('a', href=re.compile(r'/documents/\d+/'))
-        doc_links.extend(links)
-        
-        # Pattern 2: Links with document IDs
-        links = soup.find_all('a', href=re.compile(r'/documents/'))
-        doc_links.extend(links)
-        
-        # Pattern 3: Any links that might be documents
-        links = soup.find_all('a', href=True)
-        for link in links:
+        # Method 1: Extract from all href attributes
+        all_links = pagination_div.find_all('a', href=True)
+        for link in all_links:
             href = link.get('href', '')
-            if '/documents/' in href or 'doc' in href.lower():
-                doc_links.append(link)
+            # Look for PAGEN_1 parameter
+            page_match = re.search(r'PAGEN_1=(\d+)', href)
+            if page_match:
+                page_num = int(page_match.group(1))
+                page_numbers.add(page_num)
+                logging.info(f"Found page number from href: {page_num}")
         
-        # Remove duplicates
-        unique_links = []
-        seen_urls = set()
-        for link in doc_links:
-            url = response.urljoin(link['href'])
-            if url not in seen_urls:
-                seen_urls.add(url)
-                unique_links.append(link)
+        # Method 2: Extract from text content of all elements
+        all_elements = pagination_div.find_all(['a', 'span'])
+        for element in all_elements:
+            text = element.get_text(strip=True)
+            # Check if text is a pure number (page number)
+            if text.isdigit() and len(text) <= 4:  # Reasonable page number length
+                page_num = int(text)
+                page_numbers.add(page_num)
+                logging.info(f"Found page number from text: {page_num}")
         
-        logging.info(f"Found {len(unique_links)} unique document links from search page")
+        # Method 3: Look for specific patterns in the entire pagination HTML
+        pagination_html = str(pagination_div)
+        # Find all numbers that could be page numbers
+        all_numbers = re.findall(r'PAGEN_1=(\d+)', pagination_html)
+        for num_str in all_numbers:
+            page_num = int(num_str)
+            page_numbers.add(page_num)
+            logging.info(f"Found page number from HTML pattern: {page_num}")
         
-        # Visit each document detail page
-        for link in unique_links[:10]:  # Increased limit to get more documents
-            doc_url = response.urljoin(link['href'])
-            logging.info(f"Will visit document URL from search: {doc_url}")
-            yield scrapy.Request(
-                url=doc_url,
-                callback=self.parse_document,
-                meta={'doc_url': doc_url, 'source': 'search_page'}
-            )
+        # Method 4: Look for numbers that appear to be page numbers in the text
+        text_numbers = re.findall(r'\b(\d{1,4})\b', pagination_div.get_text())
+        for num_str in text_numbers:
+            page_num = int(num_str)
+            # Filter out obviously non-page numbers (like years, small numbers that are likely not pages)
+            if page_num > 0 and page_num <= 10000:  # Reasonable page number range
+                page_numbers.add(page_num)
+                logging.info(f"Found potential page number from text: {page_num}")
+        
+        if page_numbers:
+            first_page = 1  # Always start from 1
+            last_page = max(page_numbers)
+            sorted_pages = sorted(page_numbers)
+            logging.info(f"All found page numbers: {sorted_pages}")
+            logging.info(f"Last page determined: {last_page}")
+            logging.info(f"Total pages to visit: {last_page}")
+            return first_page, last_page
+        
+        logging.warning("No page numbers found in pagination")
+        return None
 
-    def parse_document(self, response):
-        """Parse individual document page to extract content"""
-        soup = BeautifulSoup(response.text, 'html.parser')
+    def extract_document_items(self, soup, page_url):
+        """Extract document items from the page"""
+        items = []
         
-        logging.info(f"Parsing document page: {response.url}")
+        # Find the parent container
+        parent_div = soup.find('div', class_='DocSearchResult_Items')
+        if not parent_div:
+            logging.warning("DocSearchResult_Items container not found")
+            return items
         
-        # Save the document page HTML for debugging
-        # with open(f'eaeu_doc_{response.url.split("/")[-2]}.html', 'w', encoding='utf-8') as f:
-        #     f.write(response.text)
-        logging.info(f"Saved document HTML to eaeu_doc_{response.url.split('/')[-2]}.html")
+        # Find all document items
+        document_divs = parent_div.find_all('div', class_='DocSearchResult_Item')
+        logging.info(f"Found {len(document_divs)} document divs")
         
-        # Extract document title - look for specific title elements
-        title = ""
-        title_selectors = [
-            'h1',
-            'h2', 
-            '.title',
-            '.heading',
-            '.document-title',
-            '.doc-title',
-            'title'
-        ]
+        for doc_div in document_divs:
+            try:
+                item = self.parse_document_item(doc_div, page_url)
+                if item:
+                    items.append(item)
+            except Exception as e:
+                logging.error(f"Error parsing document item: {e}")
+                continue
         
-        for selector in title_selectors:
-            title_elem = soup.select_one(selector)
-            if title_elem:
-                title = title_elem.get_text(strip=True)
-                logging.info(f"Found title using '{selector}': {title}")
-                break
+        return items
+
+    def parse_document_item(self, doc_div, page_url):
+        """Parse individual document item div"""
+        # Extract document link
+        link_elem = doc_div.find('a', class_='DocSearchResult_Item__Link')
+        if not link_elem:
+            logging.warning("Document link not found")
+            return None
         
-        # Look for document number in the URL or page content
-        doc_number = ""
-        url_match = re.search(r'/documents/(\d+)/', response.url)
-        if url_match:
-            doc_number = url_match.group(1)
-            logging.info(f"Extracted doc number from URL: {doc_number}")
+        doc_url = link_elem.get('href')
+        if not doc_url:
+            logging.warning("Document URL not found")
+            return None
         
-        # If no number from URL, try to find it in the content
-        if not doc_number:
-            number_match = re.search(r'№\s*(\d+)', title or response.text)
-            if number_match:
-                doc_number = number_match.group(1)
-                logging.info(f"Extracted doc number from content: {doc_number}")
+        # Make URL absolute
+        doc_url = f"https://docs.eaeunion.org{doc_url}"
         
-        # Extract document content - try multiple approaches
-        content = ""
+        # Extract title
+        title = link_elem.get_text(strip=True)
         
-        # Approach 1: Look for specific content areas
-        content_selectors = [
-            '.document-content',
-            '.content',
-            '.main-content',
-            '.document-text',
-            '.text-content',
-            'article',
-            'main',
-            '.document-body',
-            '.doc-content',
-            '.document',
-            '.doc-text',
-            '.legal-content'
-        ]
+        # Extract document text/description
+        text_elem = doc_div.find('div', class_='DocSearchResult_Item__Text')
+        description = text_elem.get_text(strip=True) if text_elem else ""
         
-        for selector in content_selectors:
-            content_elem = soup.select_one(selector)
-            if content_elem:
-                # Remove navigation, menus, and other UI elements
-                for elem in content_elem.find_all(['nav', 'menu', '.navigation', '.sidebar', '.menu', '.search', '.filter', 'script', 'style']):
-                    elem.decompose()
-                content = content_elem.get_text(separator=' ', strip=True)
-                logging.info(f"Found content using selector '{selector}': {len(content)} chars")
-                break
-        
-        # Approach 2: If no specific content area, try to extract from body with cleaning
-        if not content:
-            # Remove navigation and UI elements from the entire page
-            for elem in soup.find_all(['nav', 'menu', '.navigation', '.sidebar', '.menu', '.search', '.filter', 'header', 'footer', 'script', 'style']):
-                elem.decompose()
-            
-            # Try to get content from body
-            body = soup.find('body')
-            if body:
-                content = body.get_text(separator=' ', strip=True)
-                logging.info(f"Using body content: {len(content)} chars")
-        
-        # Clean up the content
-        if content:
-            # Remove common navigation and UI text
-            content = re.sub(r'Отображать документы.*?Найти', '', content, flags=re.DOTALL)
-            content = re.sub(r'Страницы:.*?След\.', '', content, flags=re.DOTALL)
-            content = re.sub(r'Результаты: найдено\d+', '', content)
-            content = re.sub(r'Дата опубликования документа.*?Номер документа', '', content, flags=re.DOTALL)
-            content = re.sub(r'Скачать.*?pdf', '', content, flags=re.DOTALL)
-            content = re.sub(r'Рус.*?Кыр', '', content, flags=re.DOTALL)
-            
-            # Clean up whitespace
-            content = re.sub(r'\s+', ' ', content).strip()
-        
-        # Extract document date - look for multiple date patterns
+        # Extract dates
+        dates_div = doc_div.find('div', class_='DocSearchResult_Item__Dates')
         doc_date = ""
-        date_patterns = [
-            r'(\d{2}\.\d{2}\.\d{4})',  # DD.MM.YYYY
-            r'(\d{4}-\d{2}-\d{2})',    # YYYY-MM-DD
-            r'(\d{1,2}\s+[а-я]+\s+\d{4})',  # Russian date format
-        ]
+        if dates_div:
+            # Look for adoption date
+            adoption_div = dates_div.find('div', string=re.compile(r'Дата принятия документа:'))
+            if adoption_div:
+                date_text = adoption_div.get_text(strip=True)
+                date_match = re.search(r'(\d{2}\.\d{2}\.\d{4})', date_text)
+                if date_match:
+                    doc_date = date_match.group(1)
         
-        for pattern in date_patterns:
-            date_match = re.search(pattern, title or content)
-            if date_match:
-                doc_date = date_match.group(1)
-                logging.info(f"Extracted date using pattern '{pattern}': {doc_date}")
-                break
+        # Extract document number from title
+        doc_number = ""
+        number_match = re.search(r'№\s*(\d+)', title)
+        if number_match:
+            doc_number = number_match.group(1)
+        
+        # Extract files information
+        files = self.extract_files_info(doc_div)
+        
+        # Process all documents regardless of date
+        if doc_date:
+            try:
+                date_obj = datetime.strptime(doc_date, '%d.%m.%Y')
+                logging.info(f"Processing document from {date_obj.date()}")
+            except Exception as e:
+                logging.warning(f"Failed to parse date {doc_date}: {e}")
+                # Continue processing even if date parsing fails
+        else:
+            logging.info(f"No date found for document: {title}, processing anyway")
         
         # Generate unique ID
         doc_id = str(uuid.uuid4())
@@ -270,79 +209,114 @@ class EaeuSpider(scrapy.Spider):
         published_at = int(datetime.now().timestamp())
         if doc_date:
             try:
-                # Try different date formats
-                if re.match(r'\d{2}\.\d{2}\.\d{4}', doc_date):
-                    date_obj = datetime.strptime(doc_date, '%d.%m.%Y')
-                elif re.match(r'\d{4}-\d{2}-\d{2}', doc_date):
-                    date_obj = datetime.strptime(doc_date, '%Y-%m-%d')
-                else:
-                    # For Russian date format, we'll need more complex parsing
-                    # For now, use current date
-                    date_obj = datetime.now()
-                
+                date_obj = datetime.strptime(doc_date, '%d.%m.%Y')
                 published_at = int(date_obj.timestamp())
-                logging.info(f"Converted date {doc_date} to timestamp: {published_at}")
             except Exception as e:
                 logging.warning(f"Failed to parse date {doc_date}: {e}")
         
-        # Check if document is from today or yesterday
-        doc_datetime = datetime.fromtimestamp(published_at)
-        today = datetime.now().date()
-        yesterday = today - timedelta(days=1)
-        doc_date_only = doc_datetime.date()
+        # Combine title and description for content
+        content = f"{title}. {description}".strip()
         
-        # Only process documents from today or yesterday
-        if doc_date_only not in [today, yesterday]:
-            logging.info(f"Skipping document from {doc_date_only} (not today or yesterday)")
-            return
-        
-        logging.info(f"Processing document from {doc_date_only} (today: {today}, yesterday: {yesterday})")
-        
-        # If title is still generic, try to extract a better title from content
-        if not title or title.lower() in ['документы', 'документ', 'documents']:
-            # Look for document titles in the content
-            title_match = re.search(r'(Решение ВЕЭС № \d+.*?)(?=\s|$)', content)
-            if title_match:
-                title = title_match.group(1).strip()
-                logging.info(f"Extracted better title from content: {title}")
-        
-        # If we still don't have a good title, use the URL
-        if not title:
-            title = f"EAEU Document {doc_number or 'Unknown'}"
-        
-        logging.info(f"Final title: {title}")
-        logging.info(f"Final doc number: {doc_number}")
+        logging.info(f"Extracted document: {title}")
+        logging.info(f"Document number: {doc_number}")
+        logging.info(f"Document date: {doc_date}")
         logging.info(f"Content length: {len(content)}")
-        logging.info(f"Document date: {doc_date_only}")
         
-        # Only yield if we have meaningful content
-        if content and len(content) > 50:
-            yield {
-                'id': doc_id,
-                'text': content[:5000] if content else title,  # Limit content length
-                'lawMetadata': {
-                    'originalId': doc_number,
-                    'docKind': 'act',
-                    'title': title,
-                    'source': 'docs.eaeunion.org',
-                    'url': response.url,
-                    'publishedAt': published_at,
-                    'parsedAt': int(datetime.now().timestamp()),
-                    'jurisdiction': 'EAEU',
-                    'language': 'ru',
-                    'stage': None,
-                    'discussionPeriod': {
-                        'start': None,
-                        'end': None
-                    },
-                    'explanatoryNote': {
-                        'fileId': None,
-                        'url': None,
-                        'mimeType': None
-                    },
-                    'summaryReports': [],
-                    'commentStats': {'total': 0}
-                }
-            } 
-        else:
-            logging.warning(f"No meaningful content found for {response.url}") 
+        return {
+            'id': doc_id,
+            'text': content[:5000] if content else title,  # Limit content length
+            'lawMetadata': {
+                'originalId': doc_number,
+                'docKind': 'act',
+                'title': title,
+                'source': 'docs.eaeunion.org',
+                'url': doc_url,
+                'publishedAt': published_at,
+                'parsedAt': int(datetime.now().timestamp()),
+                'jurisdiction': 'EAEU',
+                'language': 'ru',
+                'stage': None,
+                'discussionPeriod': {
+                    'start': None,
+                    'end': None
+                },
+                'explanatoryNote': {
+                    'fileId': None,
+                    'url': None,
+                    'mimeType': None
+                },
+                'summaryReports': [],
+                'commentStats': {'total': 0},
+                'files': files
+            }
+        }
+
+    def extract_files_info(self, doc_div):
+        """Extract files information from document item"""
+        files = []
+        
+        # Find the files section
+        files_div = doc_div.find('div', class_='DocSearchResult_Item__Files')
+        if not files_div:
+            return files
+        
+        # Find all file groups
+        file_groups = files_div.find_all('div', class_='DocDetail_Files_Group')
+        
+        for group in file_groups:
+            # Check if this is an "Applications" group
+            group_title = group.find('div', class_='DocDetail_Files_Title')
+            is_application = group_title and 'Приложения' in group_title.get_text(strip=True)
+            
+            # Find all file items in this group
+            file_items = group.find_all('div', class_='DocSearchResult_Item__File')
+            
+            for file_item in file_items:
+                file_info = {}
+                
+                # Extract file name from the link
+                file_link = file_item.find('a', href=True)
+                if file_link:
+                    file_url = file_link.get('href', '')
+                    if file_url.startswith('/'):
+                        file_url = f"https://docs.eaeunion.org{file_url}"
+                    
+                    # Extract file name from URL
+                    file_name = file_url.split('/')[-1] if file_url else "unknown"
+                    
+                    # Determine mime type based on file extension
+                    mime_type = "application/octet-stream"  # default
+                    if file_name.lower().endswith('.pdf'):
+                        mime_type = "application/pdf"
+                    elif file_name.lower().endswith('.zip'):
+                        mime_type = "application/zip"
+                    elif file_name.lower().endswith('.doc') or file_name.lower().endswith('.docx'):
+                        mime_type = "application/msword"
+                    elif file_name.lower().endswith('.xls') or file_name.lower().endswith('.xlsx'):
+                        mime_type = "application/vnd.ms-excel"
+                    
+                    # Generate a file ID (using part of the URL hash)
+                    file_id = file_url.split('/')[-1].split('.')[0] if file_url else str(uuid.uuid4())[:8]
+                    
+                    file_info = {
+                        'fileId': file_id,
+                        'url': file_url,
+                        'mimeType': mime_type
+                    }
+                    
+                    files.append(file_info)
+        
+        logging.info(f"Extracted {len(files)} files")
+        return files
+
+    def parse_main_page(self, response):
+        """Legacy method - kept for compatibility but not used"""
+        pass
+
+    def parse_search_page(self, response):
+        """Legacy method - kept for compatibility but not used"""
+        pass
+
+    def parse_document(self, response):
+        """Legacy method - kept for compatibility but not used"""
+        pass 

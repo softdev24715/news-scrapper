@@ -53,6 +53,7 @@ class LegalDocument(Base):
     explanatory_note = Column(JSON)
     summary_reports = Column(JSON)
     comment_stats = Column(JSON)
+    files = Column(JSON)  # Store files array as JSON
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -75,7 +76,8 @@ class LegalDocument(Base):
                 'discussionPeriod': self.discussion_period,
                 'explanatoryNote': self.explanatory_note,
                 'summaryReports': self.summary_reports,
-                'commentStats': self.comment_stats
+                'commentStats': self.comment_stats,
+                'files': self.files
             }
         }
 

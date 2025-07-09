@@ -54,33 +54,6 @@ class RegulationSpider(scrapy.Spider):
                 # If no date found, assume it's from today for now
                 self.logger.debug(f"No date found for regulation, assuming today: {title}")
 
-            # Create meaningful text content by combining title and description
-            text_content = title
-            if description:
-                # Clean up description and add it to text content
-                clean_description = description.strip()
-                if clean_description and clean_description != title:
-                    text_content = f"{title}\n\n{clean_description}"
-            
-            # Create text content using only the parsed description fields
-            text_parts = []
-            
-            # Add structured information from parsed description fields
-            if desc_fields:
-                if desc_fields.get('ID проекта'):
-                    text_parts.append(f"Project ID: {desc_fields['ID проекта']}")
-                if desc_fields.get('Дата создания'):
-                    text_parts.append(f"Creation Date: {desc_fields['Дата создания']}")
-                if desc_fields.get('Разработчик'):
-                    text_parts.append(f"Developer: {desc_fields['Разработчик']}")
-                if desc_fields.get('Процедура'):
-                    text_parts.append(f"Procedure: {desc_fields['Процедура']}")
-                if desc_fields.get('Вид'):
-                    text_parts.append(f"Type: {desc_fields['Вид']}")
-            
-            # Combine all parts with proper formatting, or use title if no description fields
-            text_content = "\n\n".join(text_parts) if text_parts else title
-
             # Compose structured item
             law_metadata = {
                 'originalId': guid,
@@ -109,7 +82,7 @@ class RegulationSpider(scrapy.Spider):
             processed_count += 1
             yield {
                 'id': str(uuid.uuid4()),
-                'text': text_content,
+                'text': title,
                 'lawMetadata': law_metadata
             }
         
