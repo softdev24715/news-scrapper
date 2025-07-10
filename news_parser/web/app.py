@@ -6,7 +6,7 @@ import configparser
 from datetime import datetime
 from flask import Flask, jsonify, request, render_template, redirect, url_for, g
 from flask_cors import CORS
-from sqlalchemy import desc, create_engine, text
+from sqlalchemy import desc, create_engine, text, func
 import sys
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
@@ -59,6 +59,20 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Create a separate logger for spider operations
+spider_logger = logging.getLogger('spider_operations')
+spider_logger.setLevel(logging.INFO)
+
+# Create spider log file handler
+spider_handler = logging.FileHandler('logs/spider.log')
+spider_handler.setLevel(logging.INFO)
+spider_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+spider_handler.setFormatter(spider_formatter)
+spider_logger.addHandler(spider_handler)
+
+# Prevent duplicate logs
+spider_logger.propagate = False
 
 app = Flask(__name__)
 CORS(app)
@@ -176,8 +190,56 @@ def set_spider_running_status(name, running_status):
         })
         conn.commit()
 
+def run_spider_with_logging(spider_name):
+    """Run a spider with comprehensive logging"""
+    try:
+        # Get the absolute path to the news_parser directory
+        project_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        
+        spider_logger.info(f"Starting spider: {spider_name}")
+        spider_logger.info(f"Working directory: {project_path}")
+        spider_logger.info(f"Python path: {PYTHON_PATH}")
+        
+        # Run the spider with output capture
+        process = subprocess.Popen(
+            [PYTHON_PATH, '-m', 'scrapy', 'crawl', spider_name],
+            cwd=project_path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
+        )
+        
+        # Log real-time output
+        if process.stdout:
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+                if output:
+                    spider_logger.info(f"[{spider_name}] {output.strip()}")
+        
+        # Get return code and any remaining output
+        return_code = process.poll()
+        _, stderr = process.communicate()
+        
+        if stderr:
+            spider_logger.error(f"[{spider_name}] Error output: {stderr}")
+        
+        if return_code == 0:
+            spider_logger.info(f"Spider {spider_name} completed successfully")
+            return True
+        else:
+            spider_logger.error(f"Spider {spider_name} failed with return code: {return_code}")
+            return False
+            
+    except Exception as e:
+        spider_logger.error(f"Exception running spider {spider_name}: {str(e)}", exc_info=True)
+        return False
+
 def run_spider(spider_name):
-    """Run a specific spider"""
+    """Run a specific spider (legacy function)"""
     try:
         # Get the absolute path to the news_parser directory
         project_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -237,14 +299,32 @@ def update_spider_status_api(name):
 def run_spider_api(name):
     try:
         set_spider_running_status(name, 'running')
-        subprocess.Popen([
-            PYTHON_PATH, '-m', 'scrapy', 'crawl', name
-        ], cwd=SCRAPY_PROJECT_PATH)
-        return jsonify({'success': True, 'message': f'{name} spider running successful'})
+        spider_logger.info(f"API request to run spider: {name}")
+        
+        # Use threading to run spider in background while logging
+        import threading
+        def run_spider_thread():
+            try:
+                success = run_spider_with_logging(name)
+                if success:
+                    set_spider_running_status(name, 'idle')
+                    spider_logger.info(f"Spider {name} completed and set to idle")
+                else:
+                    set_spider_running_status(name, 'error')
+                    spider_logger.error(f"Spider {name} failed and set to error")
+            except Exception as e:
+                spider_logger.error(f"Exception in spider thread for {name}: {str(e)}", exc_info=True)
+                set_spider_running_status(name, 'error')
+        
+        thread = threading.Thread(target=run_spider_thread)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({'success': True, 'message': f'{name} spider started successfully'})
     except Exception as e:
-        logger.error(f"Error running spider {name}: {str(e)}", exc_info=True)
+        logger.error(f"Error starting spider {name}: {str(e)}", exc_info=True)
         set_spider_running_status(name, 'error')
-        return jsonify({'success': False, 'message': f'Error running spider {name}: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error starting spider {name}: {str(e)}'}), 500
 
 @app.route('/api/articles', methods=['GET'])
 def get_articles():
@@ -299,17 +379,17 @@ def get_stats():
     total_articles = db.query(Article).count()
     
     # Get articles count by source
-    sources = db.query(Article.source, db.func.count(Article.id))\
+    sources = db.query(Article.source, func.count(Article.id))\
         .group_by(Article.source)\
         .all()
     
     # Get articles count by day for the last 7 days
     date_from = datetime.utcnow() - timedelta(days=7)
     daily_stats = db.query(
-        db.func.date(Article.published_at_iso),
-        db.func.count(Article.id)
+        func.date(Article.published_at_iso),
+        func.count(Article.id)
     ).filter(Article.published_at_iso >= date_from)\
-        .group_by(db.func.date(Article.published_at_iso))\
+        .group_by(func.date(Article.published_at_iso))\
         .all()
     
     return jsonify({
@@ -384,15 +464,34 @@ def dashboard():
 
 @app.route('/dashboard/run/<name>', methods=['POST'])
 def dashboard_run_spider(name):
-    # Trigger the spider run (sync call)
+    # Trigger the spider run (async call)
     try:
         # Immediately set running_status to 'running' for instant feedback
         set_spider_running_status(name, 'running')
-        subprocess.Popen([
-            PYTHON_PATH, '-m', 'scrapy', 'crawl', name
-        ], cwd=SCRAPY_PROJECT_PATH)
+        spider_logger.info(f"Dashboard request to run spider: {name}")
+        
+        # Use threading to run spider in background while logging
+        import threading
+        def run_spider_thread():
+            try:
+                success = run_spider_with_logging(name)
+                if success:
+                    set_spider_running_status(name, 'idle')
+                    spider_logger.info(f"Spider {name} completed and set to idle")
+                else:
+                    set_spider_running_status(name, 'error')
+                    spider_logger.error(f"Spider {name} failed and set to error")
+            except Exception as e:
+                spider_logger.error(f"Exception in spider thread for {name}: {str(e)}", exc_info=True)
+                set_spider_running_status(name, 'error')
+        
+        thread = threading.Thread(target=run_spider_thread)
+        thread.daemon = True
+        thread.start()
+        
         return redirect(url_for('dashboard'))
     except Exception as e:
+        spider_logger.error(f"Error starting spider {name} from dashboard: {str(e)}", exc_info=True)
         set_spider_running_status(name, 'error')
         return redirect(url_for('dashboard'))
 
@@ -406,15 +505,37 @@ def dashboard_run_all():
     with engine.connect() as conn:
         result = conn.execute(text('SELECT name FROM spider_status WHERE status=\'scheduled\''))
         names = [row[0] for row in result]
+    
+    spider_logger.info(f"Dashboard request to run all scheduled spiders: {names}")
+    
     for name in names:
         try:
             # Immediately set running_status to 'running' for instant feedback
             set_spider_running_status(name, 'running')
-            subprocess.Popen([
-                PYTHON_PATH, '-m', 'scrapy', 'crawl', name
-            ], cwd=SCRAPY_PROJECT_PATH)
+            
+            # Use threading to run spider in background while logging
+            import threading
+            def run_spider_thread(spider_name):
+                try:
+                    success = run_spider_with_logging(spider_name)
+                    if success:
+                        set_spider_running_status(spider_name, 'idle')
+                        spider_logger.info(f"Spider {spider_name} completed and set to idle")
+                    else:
+                        set_spider_running_status(spider_name, 'error')
+                        spider_logger.error(f"Spider {spider_name} failed and set to error")
+                except Exception as e:
+                    spider_logger.error(f"Exception in spider thread for {spider_name}: {str(e)}", exc_info=True)
+                    set_spider_running_status(spider_name, 'error')
+            
+            thread = threading.Thread(target=run_spider_thread, args=(name,))
+            thread.daemon = True
+            thread.start()
+            
         except Exception as e:
+            spider_logger.error(f"Error starting spider {name} from dashboard run_all: {str(e)}", exc_info=True)
             set_spider_running_status(name, 'error')
+    
     return redirect(url_for('dashboard'))
 
 @app.route('/dashboard/stop_all', methods=['POST'])
@@ -452,23 +573,104 @@ def run_spiders_immediate():
     spiders = data.get('spiders', [])
     if not spiders:
         spiders = [spider['name'] for spider in get_spider_status()]
+    
+    spider_logger.info(f"API request to run spiders immediately: {spiders}")
+    
     try:
         # Immediately set all spiders to 'running' status for instant feedback
         for name in spiders:
             set_spider_running_status(name, 'running')
         
-        # Then start the spider processes
+        # Then start the spider processes with logging
         for name in spiders:
-            subprocess.Popen([
-                PYTHON_PATH, '-m', 'scrapy', 'crawl', name
-            ], cwd=SCRAPY_PROJECT_PATH)
-        return jsonify({'success': True, 'message': 'All selected spiders running successfully'})
+            # Use threading to run spider in background while logging
+            import threading
+            def run_spider_thread(spider_name):
+                try:
+                    success = run_spider_with_logging(spider_name)
+                    if success:
+                        set_spider_running_status(spider_name, 'idle')
+                        spider_logger.info(f"Spider {spider_name} completed and set to idle")
+                    else:
+                        set_spider_running_status(spider_name, 'error')
+                        spider_logger.error(f"Spider {spider_name} failed and set to error")
+                except Exception as e:
+                    spider_logger.error(f"Exception in spider thread for {spider_name}: {str(e)}", exc_info=True)
+                    set_spider_running_status(spider_name, 'error')
+            
+            thread = threading.Thread(target=run_spider_thread, args=(name,))
+            thread.daemon = True
+            thread.start()
+        
+        return jsonify({'success': True, 'message': 'All selected spiders started successfully'})
     except Exception as e:
-        logger.error(f"Error running spiders: {str(e)}", exc_info=True)
+        spider_logger.error(f"Error starting spiders: {str(e)}", exc_info=True)
         # If there's an error, set status back to 'error'
         for name in spiders:
             set_spider_running_status(name, 'error')
-        return jsonify({'success': False, 'message': f'Error running spiders: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error starting spiders: {str(e)}'}), 500
+
+@app.route('/api/logs/spider', methods=['GET'])
+def get_spider_logs():
+    """Get spider logs"""
+    try:
+        lines = request.args.get('lines', 100, type=int)
+        spider_name = request.args.get('spider')
+        
+        log_file = 'logs/spider.log'
+        if not os.path.exists(log_file):
+            return jsonify({'logs': [], 'message': 'No spider logs found'})
+        
+        with open(log_file, 'r', encoding='utf-8') as f:
+            all_lines = f.readlines()
+        
+        # Filter by spider name if provided
+        if spider_name:
+            filtered_lines = [line for line in all_lines if f'[{spider_name}]' in line]
+        else:
+            filtered_lines = all_lines
+        
+        # Get the last N lines
+        recent_logs = filtered_lines[-lines:] if len(filtered_lines) > lines else filtered_lines
+        
+        return jsonify({
+            'logs': [line.strip() for line in recent_logs],
+            'total_lines': len(filtered_lines),
+            'returned_lines': len(recent_logs)
+        })
+    except Exception as e:
+        logger.error(f"Error reading spider logs: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Error reading logs: {str(e)}'}), 500
+
+@app.route('/api/logs/app', methods=['GET'])
+def get_app_logs():
+    """Get application logs"""
+    try:
+        lines = request.args.get('lines', 100, type=int)
+        
+        log_file = 'logs/app.log'
+        if not os.path.exists(log_file):
+            return jsonify({'logs': [], 'message': 'No app logs found'})
+        
+        with open(log_file, 'r', encoding='utf-8') as f:
+            all_lines = f.readlines()
+        
+        # Get the last N lines
+        recent_logs = all_lines[-lines:] if len(all_lines) > lines else all_lines
+        
+        return jsonify({
+            'logs': [line.strip() for line in recent_logs],
+            'total_lines': len(all_lines),
+            'returned_lines': len(recent_logs)
+        })
+    except Exception as e:
+        logger.error(f"Error reading app logs: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Error reading logs: {str(e)}'}), 500
+
+@app.route('/logs')
+def logs_page():
+    """Render the logs page"""
+    return render_template('logs.html')
 
 @app.route('/health')
 def health_check():
