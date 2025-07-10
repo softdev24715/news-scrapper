@@ -16,14 +16,13 @@ class SozdSpider(scrapy.Spider):
     }
 
     def start_requests(self):
-        """Start with all three document types to find recent documents"""
-        # Get today's and yesterday's dates for filtering
-        today = datetime.now()
-        yesterday = today - timedelta(days=1)
-        self.target_dates = [
-            today.strftime('%Y-%m-%d'),
-            yesterday.strftime('%Y-%m-%d')
-        ]
+        """Start with all three document types to find all documents"""
+        # Track pagination info for each document type
+        self.pagination_info = {
+            'bills': (1, 1),
+            'draft_resolutions': (1, 1),
+            'draft_initiatives': (1, 1)
+        }
         
         # Track pagination state for each document type
         self.stop_pagination = {
@@ -32,16 +31,7 @@ class SozdSpider(scrapy.Spider):
             'draft_initiatives': False
         }
         
-        # Track pagination info for each document type
-        self.pagination_info = {
-            'bills': (1, 1),
-            'draft_resolutions': (1, 1),
-            'draft_initiatives': (1, 1)
-        }
-        
-
-        
-        logging.info(f"Looking for SOZD documents from: {self.target_dates}")
+        logging.info("Looking for all SOZD documents (no date filtering)")
         
         # Start with all three document types
         document_types = [
@@ -80,15 +70,15 @@ class SozdSpider(scrapy.Spider):
         
         logging.info(f"Parsing {doc_type['name']} search page {current_page}: {response.url}")
         
+        # Check if pagination is already stopped for this document type
+        if self.stop_pagination[doc_type['name']]:
+            logging.info(f"Skipping {doc_type['name']} page {current_page} - pagination already stopped")
+            return
+        
         # Save the page HTML for debugging
         # with open(f'sozd_{doc_type["name"]}_page_{current_page}.html', 'w', encoding='utf-8') as f:
         #     f.write(response.text)
         logging.info(f"Saved page HTML to sozd_{doc_type['name']}_page_{current_page}.html")
-        
-        # Check if we should stop pagination for this document type
-        if self.stop_pagination.get(doc_type['name'], False):
-            logging.info(f"Skipping {doc_type['name']} page {current_page} - pagination stopped due to older documents")
-            return
         
         # Extract pagination info from the first page only
         if current_page == 1:
@@ -103,7 +93,7 @@ class SozdSpider(scrapy.Spider):
         logging.info(f"Found {len(document_links)} document links on {doc_type['name']} page {current_page}")
         
         # Sequential processing: process one document at a time
-        if document_links and not self.stop_pagination.get(doc_type['name'], False):
+        if document_links:
             yield scrapy.Request(
                 url=document_links[0],
                 callback=self.parse_document_detail,
@@ -121,13 +111,11 @@ class SozdSpider(scrapy.Spider):
             logging.info(f"No documents to process on {doc_type['name']} page {current_page}")
 
     def extract_pagination_info(self, soup, doc_type):
-        """Extract pagination information from search page"""
-        # Look for pagination elements
+        """Extract pagination information from search page - improved like EAEU"""
+        page_numbers = set()  # Use set to avoid duplicates
+        
+        # Method 1: Look for pagination elements with page/pagination classes
         pagination_elements = soup.find_all(['a', 'span'], class_=re.compile(r'page|pagination'))
-        
-        page_numbers = set()
-        
-        # Extract page numbers from pagination elements
         for elem in pagination_elements:
             # Check href for page numbers
             href = elem.get('href', '')
@@ -139,12 +127,12 @@ class SozdSpider(scrapy.Spider):
             
             # Check text content for page numbers
             text = elem.get_text(strip=True)
-            if text.isdigit() and len(text) <= 3:  # Reasonable page number
+            if text.isdigit() and len(text) <= 4:  # Reasonable page number length
                 page_num = int(text)
                 page_numbers.add(page_num)
                 logging.info(f"Found page number from text: {page_num}")
         
-        # Also look for pagination text like "Страница X из Y"
+        # Method 2: Look for pagination text like "Страница X из Y"
         pagination_text = soup.get_text()
         page_range_match = re.search(r'Страница\s+(\d+)\s+из\s+(\d+)', pagination_text)
         if page_range_match:
@@ -154,10 +142,31 @@ class SozdSpider(scrapy.Spider):
             page_numbers.add(total_pages)
             logging.info(f"Found page range: {current_page} of {total_pages}")
         
+        # Method 3: Look for all numbers that could be page numbers in the entire page
+        all_numbers = re.findall(r'page=(\d+)', str(soup))
+        for num_str in all_numbers:
+            page_num = int(num_str)
+            page_numbers.add(page_num)
+            logging.info(f"Found page number from HTML pattern: {page_num}")
+        
+        # Method 4: Look for numbers that appear to be page numbers in pagination areas
+        pagination_areas = soup.find_all(['div', 'nav'], class_=re.compile(r'pagination|page|nav'))
+        for area in pagination_areas:
+            text_numbers = re.findall(r'\b(\d{1,4})\b', area.get_text())
+            for num_str in text_numbers:
+                page_num = int(num_str)
+                # Filter out obviously non-page numbers
+                if page_num > 0 and page_num <= 10000:  # Reasonable page number range
+                    page_numbers.add(page_num)
+                    logging.info(f"Found potential page number from pagination area: {page_num}")
+        
         if page_numbers:
-            first_page = 1
+            first_page = 1  # Always start from 1
             last_page = max(page_numbers)
-            logging.info(f"Found page numbers for {doc_type['name']}: {sorted(page_numbers)}, last page: {last_page}")
+            sorted_pages = sorted(page_numbers)
+            logging.info(f"All found page numbers for {doc_type['name']}: {sorted_pages}")
+            logging.info(f"Last page determined: {last_page}")
+            logging.info(f"Total pages to visit: {last_page}")
             return first_page, last_page
         
         # If no pagination found, assume it's a single page
@@ -165,23 +174,125 @@ class SozdSpider(scrapy.Spider):
         return 1, 1
 
     def extract_document_links(self, soup, page_url):
-        """Extract bill detail page links from search page using both data-clickopen and <a href>"""
+        """Extract document detail page links from search page using multiple methods"""
         links = set()
-        # Extract from data-clickopen attributes
+        
+        # Method 1: Extract from data-clickopen attributes
         for div in soup.find_all(attrs={"data-clickopen": True}):
             href = div.get("data-clickopen")
-            if href and href.startswith("/bill/"):
+            if href and (href.startswith("/bill/") or href.startswith("/document/")):
                 full_url = f"https://sozd.duma.gov.ru{href}"
                 links.add(full_url)
                 logging.info(f"Found document link (data-clickopen): {full_url}")
-        # Extract from <a href="/bill/xxxxx-x">
+        
+        # Method 2: Extract from <a href> with various patterns
         for a in soup.find_all('a', href=True):
             href = a['href']
-            if href.startswith('/bill/'):
-                full_url = f"https://sozd.duma.gov.ru{href}"
+            # Check for various document URL patterns
+            if (href.startswith('/bill/') or 
+                href.startswith('/document/') or 
+                href.startswith('/search/') or
+                '/bill/' in href or
+                '/document/' in href):
+                if href.startswith('/'):
+                    full_url = f"https://sozd.duma.gov.ru{href}"
+                elif href.startswith('http'):
+                    full_url = href
+                else:
+                    full_url = f"https://sozd.duma.gov.ru/{href}"
                 links.add(full_url)
                 logging.info(f"Found document link (<a href>): {full_url}")
+        
+        # Method 3: Look for document containers and extract links from them
+        document_containers = soup.find_all(['div', 'tr'], class_=re.compile(r'document|bill|item|row'))
+        for container in document_containers:
+            for link in container.find_all('a', href=True):
+                href = link['href']
+                if (href.startswith('/bill/') or 
+                    href.startswith('/document/') or 
+                    href.startswith('/search/') or
+                    '/bill/' in href or
+                    '/document/' in href):
+                    if href.startswith('/'):
+                        full_url = f"https://sozd.duma.gov.ru{href}"
+                    elif href.startswith('http'):
+                        full_url = href
+                    else:
+                        full_url = f"https://sozd.duma.gov.ru/{href}"
+                    links.add(full_url)
+                    logging.info(f"Found document link (container): {full_url}")
+        
+        # Method 4: Look for any clickable elements that might be document links
+        clickable_elements = soup.find_all(['div', 'span', 'td'], onclick=True)
+        for elem in clickable_elements:
+            onclick = elem.get('onclick', '')
+            # Extract URL from onclick handlers
+            url_match = re.search(r"['\"]([^'\"]*bill[^'\"]*)['\"]", onclick)
+            if url_match:
+                href = url_match.group(1)
+                if href.startswith('/'):
+                    full_url = f"https://sozd.duma.gov.ru{href}"
+                elif href.startswith('http'):
+                    full_url = href
+                else:
+                    full_url = f"https://sozd.duma.gov.ru/{href}"
+                links.add(full_url)
+                logging.info(f"Found document link (onclick): {full_url}")
+        
+        logging.info(f"Total document links found: {len(links)}")
         return list(links)
+
+    def extract_discussion_period(self, soup):
+        """Extract discussion period start and end dates from event timeline."""
+        import datetime
+        import re
+
+        discussion_period = {}
+        event_dates = []
+
+        # Find all event dates in the bill history/event timeline
+        bill_history = soup.find('div', class_='bill_history_wrap bill_hist')
+        if bill_history:
+            date_spans = bill_history.find_all(string=re.compile(r'\d{2}\.\d{2}\.\d{4}'))
+            for date_str in date_spans:
+                match = re.search(r'(\d{2}\.\d{2}\.\d{4})', date_str)
+                if match:
+                    event_dates.append(match.group(1))
+
+        if event_dates:
+            try:
+                parsed_dates = [datetime.datetime.strptime(d, '%d.%m.%Y') for d in event_dates]
+                parsed_dates.sort()
+                discussion_period['start'] = parsed_dates[0].strftime('%d.%m.%Y')
+                discussion_period['end'] = parsed_dates[-1].strftime('%d.%m.%Y')
+            except Exception as e:
+                logging.warning(f"Failed to parse event dates for discussion period: {e}")
+                discussion_period['start'] = None
+                discussion_period['end'] = None
+        else:
+            discussion_period['start'] = None
+            discussion_period['end'] = None
+
+        return discussion_period
+
+    def should_stop_pagination(self, doc_type, publication_date):
+        """Check if we should stop pagination based on document date"""
+        if not publication_date:
+            return False
+        
+        try:
+            # Parse the publication date (format: DD.MM.YYYY)
+            date_obj = datetime.strptime(publication_date, '%d.%m.%Y')
+            yesterday = datetime.now().date() - timedelta(days=1)
+            
+            # If document is older than yesterday, stop pagination
+            if date_obj.date() < yesterday:
+                logging.info(f"Document from {date_obj.date()} is older than yesterday ({yesterday}), should stop pagination for {doc_type['name']}")
+                return True
+        except Exception as e:
+            logging.warning(f"Error checking document date: {e}")
+        
+        return False
 
     def parse_document_detail(self, response):
         """Parse individual document detail page to extract content and metadata"""
@@ -195,103 +306,74 @@ class SozdSpider(scrapy.Spider):
 
         logging.info(f"Parsing {doc_type['name']} detail page {document_index + 1}/{total_documents}: {response.url}")
 
-        # Check if pagination is already stopped for this document type
-        # (do not return early, always process all bills on the page)
-
         # Extract document ID from URL
         doc_id = response.url.split('/')[-1] if '/' in response.url else None
 
-        # Extract title
-        title = ""
-        title_selectors = ['h1', 'h2', '.title', '.document-title', '.bill-title', 'title']
-        for selector in title_selectors:
-            title_elem = soup.select_one(selector)
-            if title_elem:
-                title = title_elem.get_text(strip=True)
-                logging.info(f"Found title using '{selector}': {title}")
-                break
+        # Extract main title for lawMetadata['title']
+        title_elem = soup.find('span', id='oz_name')
+        title = title_elem.get_text(strip=True) if title_elem else ""
+        text = ""
 
-        # Extract content/text
+        # Extract content/text (for other uses, not for 'text' field)
         content = self.extract_content(soup)
 
         # Extract publication date
         publication_date = self.extract_publication_date(soup, response.text)
 
-        # Check if document is from today or yesterday FIRST (before extracting files)
-        should_stop = False
-        process_this_bill = True
+        # Process all documents regardless of date
+        files = self.extract_files_info(soup)
+        published_at = int(datetime.now().timestamp())
         if publication_date:
             try:
                 date_obj = datetime.strptime(publication_date, '%d.%m.%Y')
-                bill_date = date_obj.strftime('%Y-%m-%d')
-
-                if bill_date not in self.target_dates:
-                    logging.info(f"Skipping {doc_type['name']} from {bill_date} - not matching {self.target_dates}")
-
-                    # Check if this document is older than yesterday
-                    doc_date = date_obj.date()
-                    yesterday = datetime.now().date() - timedelta(days=1)
-
-                    if doc_date < yesterday:
-                        # Stop pagination for this document type - we've found older documents
-                        self.stop_pagination[doc_type['name']] = True
-                        should_stop = True
-                        logging.info(f"Found document older than yesterday ({doc_date} < {yesterday}), stopping pagination for {doc_type['name']}")
-                    process_this_bill = False  # Do not yield this bill, but continue to next
-                else:
-                    logging.info(f"Processing {doc_type['name']} from {bill_date}: {title}")
-            except ValueError:
-                logging.warning(f"Could not parse publication date: {publication_date}")
-                # Continue processing even if date parsing fails
+                published_at = int(date_obj.timestamp())
+                logging.info(f"Processing {doc_type['name']} from {publication_date}: {title}")
+            except ValueError as e:
+                logging.warning(f"Failed to parse date {publication_date}: {e}")
         else:
             logging.info(f"No publication date found for {doc_type['name']}, processing anyway")
 
-        files = []
-        if process_this_bill:
-            files = self.extract_files_info(soup)
-            published_at = int(datetime.now().timestamp())
-            if publication_date:
-                try:
-                    date_obj = datetime.strptime(publication_date, '%d.%m.%Y')
-                    published_at = int(date_obj.timestamp())
-                except ValueError as e:
-                    logging.warning(f"Failed to parse date {publication_date}: {e}")
-            doc_uuid = str(uuid.uuid4())
-            logging.info(f"Extracted {doc_type['name']}: {title}")
-            logging.info(f"Document ID: {doc_id}")
-            logging.info(f"Publication date: {publication_date}")
-            logging.info(f"Content length: {len(content)}")
-            yield {
-                'id': doc_uuid,
-                'text': content,
-                'lawMetadata': {
-                    'originalId': doc_id,
-                    'docKind': doc_type['doc_kind'],
-                    'title': title,
-                    'source': 'sozd.duma.gov.ru',
-                    'url': response.url,
-                    'publishedAt': published_at,
-                    'parsedAt': int(datetime.now().timestamp()),
-                    'jurisdiction': 'RU',
-                    'language': 'ru',
-                    'stage': None,
-                    'discussionPeriod': {
-                        'start': None,
-                        'end': None
-                    },
-                    'explanatoryNote': {
-                        'fileId': None,
-                        'url': None,
-                        'mimeType': None
-                    },
-                    'summaryReports': [],
-                    'commentStats': {'total': 0},
-                    'files': files
-                }
+        doc_uuid = str(uuid.uuid4())
+        logging.info(f"Extracted {doc_type['name']}: {title}")
+        logging.info(f"Document ID: {doc_id}")
+        logging.info(f"Publication date: {publication_date}")
+        logging.info(f"Content length: {len(content)}")
+        yield {
+            'id': doc_uuid,
+            'text': text,
+            'lawMetadata': {
+                'originalId': doc_id,
+                'docKind': doc_type['doc_kind'],
+                'title': title,
+                'source': 'sozd.duma.gov.ru',
+                'url': response.url,
+                'publishedAt': published_at,
+                'parsedAt': int(datetime.now().timestamp()),
+                'jurisdiction': 'RU',
+                'language': 'ru',
+                'stage': None,
+                'discussionPeriod': self.extract_discussion_period(soup),
+                'explanatoryNote': None,
+                'summaryReports': None,
+                'commentStats': None,
+                'files': files
             }
+        }
 
-        # Always continue to the next document on the page, even if should_stop is True
-        yield from self.continue_to_next_document(doc_type, current_page, remaining_links, processed_count + 1, total_documents, should_stop)
+        # Check if we should stop pagination based on document date
+        # Only stop if we've processed multiple documents and they're all old
+        if self.should_stop_pagination(doc_type, publication_date):
+            # Only stop if this is not the first document on the page
+            if processed_count > 0:
+                self.stop_pagination[doc_type['name']] = True
+                logging.info(f"Found document older than yesterday after processing {processed_count + 1} documents, stopping pagination for {doc_type['name']}")
+                # Don't continue to next document, stop processing this document type
+                return
+            else:
+                logging.info(f"First document is old, but continuing to check other documents on this page")
+        
+        # Continue to the next document on the page
+        yield from self.continue_to_next_document(doc_type, current_page, remaining_links, processed_count + 1, total_documents)
 
     def extract_content(self, soup):
         """Extract main content from document page"""
@@ -409,84 +491,130 @@ class SozdSpider(scrapy.Spider):
         return None
 
     def extract_files_info(self, soup):
-        """Extract only files from the 'Passport details' section of the bill detail page."""
+        """Extract all real downloadable files from the document page, filtering out navigation, anchor, RSS, and non-file links."""
         files = []
         seen_fileids = set()
         seen_urls = set()
 
-        # Find the 'Passport details' section (look for a table with bill metadata)
-        # The file is usually in a row with a PDF icon or a download link
-        passport_table = None
+        def is_valid_file_link(href):
+            if not href:
+                return False
+            # Exclude anchors, queries, and RSS
+            if href.startswith('#') or href.startswith('?') or '/rss' in href:
+                return False
+            # Exclude external links not on sozd.duma.gov.ru
+            if href.startswith('http') and not href.startswith('https://sozd.duma.gov.ru'):
+                return False
+            # Only allow /download/UUID or /Files/GetFile?fileid=...
+            if '/download/' in href:
+                file_id = href.split('/')[-1]
+                # Must look like a UUID
+                if re.match(r'^[a-f0-9-]{16,}$', file_id):
+                    return True
+            if '/Files/GetFile' in href and 'fileid=' in href:
+                file_id = re.search(r'fileid=([a-f0-9-]{16,})', href)
+                if file_id:
+                    return True
+            return False
+
+        def add_file(link):
+            href = link.get('href')
+            if not is_valid_file_link(href):
+                return
+            if href.startswith('/'):
+                href = f"https://sozd.duma.gov.ru{href}"
+            file_id = href.split('/')[-1]
+            if '/Files/GetFile' in href:
+                m = re.search(r'fileid=([a-f0-9-]{16,})', href)
+                if m:
+                    file_id = m.group(1)
+            if file_id in seen_fileids or href in seen_urls:
+                return
+            seen_fileids.add(file_id)
+            seen_urls.add(href)
+            mime_type = self.get_mime_type_from_html(link, href)
+            files.append({
+                'fileId': file_id,
+                'url': href,
+                'mimeType': mime_type
+            })
+
+        # 1. Passport details table (all links)
         for table in soup.find_all('table'):
             if table.find(string=lambda s: s and ('Package of documents' in s or 'Пакет документов' in s)):
-                passport_table = table
-                break
-        if passport_table:
-            for row in passport_table.find_all('tr'):
-                cells = row.find_all('td')
-                if len(cells) >= 2:
-                    # Look for a file link in the value cell
-                    value_cell = cells[1]
-                    link = value_cell.find('a', href=True)
-                    if link:
-                        href = link['href']
-                        if href.startswith('/'):
-                            href = f"https://sozd.duma.gov.ru{href}"
-                        file_id = href.split('/')[-1]
-                        if file_id in seen_fileids or href in seen_urls:
-                            continue
-                        seen_fileids.add(file_id)
-                        seen_urls.add(href)
-                        # Guess mime type
-                        mime_type = 'application/octet-stream'
-                        if href.lower().endswith('.pdf'):
-                            mime_type = 'application/pdf'
-                        elif href.lower().endswith('.doc') or href.lower().endswith('.docx'):
-                            mime_type = 'application/msword'
-                        elif href.lower().endswith('.xls') or href.lower().endswith('.xlsx'):
-                            mime_type = 'application/vnd.ms-excel'
-                        elif href.lower().endswith('.zip'):
-                            mime_type = 'application/zip'
-                        files.append({
-                            'fileId': file_id,
-                            'url': href,
-                            'mimeType': mime_type
-                        })
-        else:
-            # Fallback: look for a PDF or download link in the main card area
-            card = soup.find('div', class_='bill_data_wrap')
-            if card:
-                link = card.find('a', href=True)
-                if link:
-                    href = link['href']
-                    if href.startswith('/'):
-                        href = f"https://sozd.duma.gov.ru{href}"
-                    file_id = href.split('/')[-1]
-                    if file_id not in seen_fileids and href not in seen_urls:
-                        seen_fileids.add(file_id)
-                        seen_urls.add(href)
-                        mime_type = 'application/octet-stream'
-                        if href.lower().endswith('.pdf'):
-                            mime_type = 'application/pdf'
-                        elif href.lower().endswith('.doc') or href.lower().endswith('.docx'):
-                            mime_type = 'application/msword'
-                        elif href.lower().endswith('.xls') or href.lower().endswith('.xlsx'):
-                            mime_type = 'application/vnd.ms-excel'
-                        elif href.lower().endswith('.zip'):
-                            mime_type = 'application/zip'
-                        files.append({
-                            'fileId': file_id,
-                            'url': href,
-                            'mimeType': mime_type
-                        })
-        logging.info(f"Total extracted {len(files)} files from Passport details section")
+                for row in table.find_all('tr'):
+                    cells = row.find_all('td')
+                    for cell in cells:
+                        for link in cell.find_all('a', href=True):
+                            add_file(link)
+
+        # 2. bill_data_wrap area (all links)
+        bill_data_wrap = soup.find('div', class_='bill_data_wrap')
+        if bill_data_wrap:
+            for link in bill_data_wrap.find_all('a', href=True):
+                add_file(link)
+
+        # 3. bill_history_wrap and other sections
+        additional_sections = [
+            'bill_history_wrap',
+            'bill_discussion_wrap',
+            'bill_attachments_wrap',
+            'bill_related_wrap',
+            'bill_events_wrap',
+        ]
+        for section_class in additional_sections:
+            section = soup.find('div', class_=section_class)
+            if section:
+                for link in section.find_all('a', href=True):
+                    add_file(link)
+
+        logging.info(f"Total extracted {len(files)} valid downloadable files from all sections")
         return files
 
-    def continue_to_next_document(self, doc_type, current_page, remaining_links, processed_count, total_documents, should_stop):
+    def get_mime_type_from_html(self, link_element, url):
+        """Extract MIME type from HTML structure and fallback to URL extension"""
+        # First, try to get format from HTML structure
+        format_classes = [
+            'format-pdf', 'format-doc', 'format-docx', 'format-xls', 'format-xlsx',
+            'format-zip', 'format-rar', 'format-txt', 'format-rtf'
+        ]
+        for format_class in format_classes:
+            if link_element.find(class_=format_class):
+                return format_class.replace('format-', '')
+        icon_elements = link_element.find_all(class_=re.compile(r'icon-file|format-'))
+        for icon in icon_elements:
+            icon_classes = icon.get('class', [])
+            for class_name in icon_classes:
+                if class_name.startswith('format-'):
+                    return class_name.replace('format-', '')
+        return self.get_mime_type_from_url(url)
+
+    def get_mime_type_from_url(self, url):
+        """Determine MIME type based on file extension (fallback method)"""
+        url_lower = url.lower()
+        if url_lower.endswith('.pdf'):
+            return 'pdf'
+        elif url_lower.endswith('.doc'):
+            return 'doc'
+        elif url_lower.endswith('.docx'):
+            return 'docx'
+        elif url_lower.endswith('.xls'):
+            return 'xls'
+        elif url_lower.endswith('.xlsx'):
+            return 'xlsx'
+        elif url_lower.endswith('.zip'):
+            return 'zip'
+        elif url_lower.endswith('.rar'):
+            return 'rar'
+        elif url_lower.endswith('.txt'):
+            return 'txt'
+        elif url_lower.endswith('.rtf'):
+            return 'rtf'
+        else:
+            return 'unknown'
+
+    def continue_to_next_document(self, doc_type, current_page, remaining_links, processed_count, total_documents):
         """Continue to the next document or page"""
-        if should_stop or self.stop_pagination.get(doc_type['name'], False):
-            logging.info(f"Not continuing - pagination stopped for {doc_type['name']}")
-            return
         if remaining_links:
             next_link = remaining_links[0]
             next_remaining = remaining_links[1:]
@@ -510,10 +638,12 @@ class SozdSpider(scrapy.Spider):
             yield from self.continue_to_next_page(doc_type, current_page)
 
     def continue_to_next_page(self, doc_type, current_page):
-        """Continue to the next page if pagination is not stopped (construct URL directly)"""
-        if self.stop_pagination.get(doc_type['name'], False):
-            logging.info(f"Not continuing to next page - pagination stopped for {doc_type['name']}")
+        """Continue to the next page (construct URL directly)"""
+        # Check if pagination is stopped for this document type
+        if self.stop_pagination[doc_type['name']]:
+            logging.info(f"Pagination stopped for {doc_type['name']}, not continuing to next page")
             return
+        
         pagination_info = self.pagination_info.get(doc_type['name'])
         if pagination_info and current_page < pagination_info[1]:
             next_page = current_page + 1

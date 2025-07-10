@@ -67,12 +67,39 @@ RETRY_FAILED = config.getboolean('Spider', 'RETRY_FAILED', fallback=True)
 MAX_RETRIES = int(config.get('Spider', 'MAX_RETRIES', fallback='3'))
 
 # Configure logging
-logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL.upper()),
-    format='%(asctime)s %(levelname)s %(message)s'
-)
+def setup_logging():
+    """Setup logging configuration with file and console handlers"""
+    # Create logs directory if it doesn't exist
+    log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Create logger
+    logger = logging.getLogger(__name__)
+    logger.setLevel(getattr(logging, LOG_LEVEL.upper()))
+    
+    # Clear any existing handlers
+    logger.handlers.clear()
+    
+    # Create formatters
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    
+    # File handler - save all logs to spider.log
+    log_file = os.path.join(log_dir, 'spider.log')
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    file_handler.setLevel(getattr(logging, LOG_LEVEL.upper()))
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
+    # Console handler - for immediate feedback
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(getattr(logging, LOG_LEVEL.upper()))
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    return logger
 
-logger = logging.getLogger(__name__)
+# Setup logging
+logger = setup_logging()
 
 def get_all_spiders():
     """Get all available spiders from the database"""
@@ -126,14 +153,9 @@ def run_spider_with_monitoring(spider_name):
     update_spider_running_status(spider_name, 'running', datetime.utcnow())
     
     try:
-        # Start spider process with date range parameters
-        today = datetime.now().strftime('%Y-%m-%d')
-        yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-        
+        # Start spider process without date parameters (spiders handle their own date filtering)
         process = subprocess.Popen([
-            PYTHON_PATH, '-m', 'scrapy', 'crawl', spider_name,
-            '-a', f'start_date={yesterday}',
-            '-a', f'end_date={today}'
+            PYTHON_PATH, '-m', 'scrapy', 'crawl', spider_name
         ], cwd=SCRAPY_PROJECT_PATH)
         
         # Wait for completion with timeout

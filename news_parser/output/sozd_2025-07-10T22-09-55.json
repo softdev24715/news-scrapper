@@ -1,0 +1,26 @@
+[
+  {
+    "id": "aba7a7f3-da5d-4839-b584-55c08bd19804",
+    "text": "",
+    "lawMetadata": {
+      "originalId": "docs?q=",
+      "docKind": "draft_resolution",
+      "title": "",
+      "source": "sozd.duma.gov.ru",
+      "url": "https://sozd.duma.gov.ru/search/docs?q=",
+      "publishedAt": 1752094800,
+      "parsedAt": 1752174693,
+      "jurisdiction": "RU",
+      "language": "ru",
+      "stage": null,
+      "discussionPeriod": {
+        "start": null,
+        "end": null
+      },
+      "explanatoryNote": null,
+      "summaryReports": null,
+      "commentStats": null,
+      "files": []
+    }
+  }
+]

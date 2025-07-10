@@ -19,7 +19,7 @@ class EaeuSpider(scrapy.Spider):
         """Start with the documents page to find pagination and extract documents"""
         # Get today's and yesterday's dates for filtering
         today = datetime.now()
-        yesterday = today - timedelta(days=1)
+        yesterday = today - timedelta(days=10)
         self.target_dates = [
             today.strftime('%Y-%m-%d'),
             yesterday.strftime('%Y-%m-%d')
@@ -161,7 +161,7 @@ class EaeuSpider(scrapy.Spider):
         # Convert timestamp to date
         try:
             doc_date = datetime.fromtimestamp(published_at).date()
-            yesterday = datetime.now().date() - timedelta(days=1)
+            yesterday = datetime.now().date() - timedelta(days=10)
             
             # If document is older than yesterday, stop pagination
             if doc_date < yesterday:
@@ -240,6 +240,8 @@ class EaeuSpider(scrapy.Spider):
         
         # Extract files information
         files = self.extract_files_info(doc_div)
+        if not files:
+            files = None
         
         # Process all documents regardless of date
         if doc_date:
@@ -267,6 +269,15 @@ class EaeuSpider(scrapy.Spider):
         # Combine title and description for content
         content = f"{title}. {description}".strip()
         
+        # Discussion period: always null for EAEU
+        discussion_period = None
+        # Explanatory note: always null for EAEU
+        explanatory_note = None
+        # Summary reports: always null for EAEU
+        summary_reports = None
+        # Comment stats: always null for EAEU
+        comment_stats = None
+        
         logging.info(f"Extracted document: {title}")
         logging.info(f"Document number: {doc_number}")
         logging.info(f"Document date: {doc_date}")
@@ -276,27 +287,20 @@ class EaeuSpider(scrapy.Spider):
             'id': doc_id,
             'text': content[:5000] if content else title,  # Limit content length
             'lawMetadata': {
-                'originalId': doc_number,
+                'originalId': doc_number if doc_number else None,
                 'docKind': 'act',
-                'title': title,
+                'title': title if title else None,
                 'source': 'docs.eaeunion.org',
                 'url': doc_url,
-                'publishedAt': published_at,
+                'publishedAt': published_at if published_at else None,
                 'parsedAt': int(datetime.now().timestamp()),
                 'jurisdiction': 'EAEU',
                 'language': 'ru',
                 'stage': None,
-                'discussionPeriod': {
-                    'start': None,
-                    'end': None
-                },
-                'explanatoryNote': {
-                    'fileId': None,
-                    'url': None,
-                    'mimeType': None
-                },
-                'summaryReports': [],
-                'commentStats': {'total': 0},
+                'discussionPeriod': discussion_period,
+                'explanatoryNote': explanatory_note,
+                'summaryReports': summary_reports,
+                'commentStats': comment_stats,
                 'files': files
             }
         }

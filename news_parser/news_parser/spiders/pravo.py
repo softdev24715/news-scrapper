@@ -191,7 +191,7 @@ class PravoSpider(scrapy.Spider):
         
         return {
             'id': doc_id,
-            'text': title,  # Use title as main text content
+            'text': "",  # Use title as main text content
             'lawMetadata': {
                 'originalId': publication_number or doc_number,
                 'docKind': self.extract_doc_kind(title),
@@ -203,17 +203,10 @@ class PravoSpider(scrapy.Spider):
                 'jurisdiction': 'RU',
                 'language': 'ru',
                 'stage': None,
-                'discussionPeriod': {
-                    'start': None,
-                    'end': None
-                },
-                'explanatoryNote': {
-                    'fileId': None,
-                    'url': None,
-                    'mimeType': None
-                },
-                'summaryReports': [],
-                'commentStats': {'total': 0},
+                'discussionPeriod': None,
+                'explanatoryNote': None,
+                'summaryReports': None,
+                'commentStats': None,
                 'files': files
             }
         }

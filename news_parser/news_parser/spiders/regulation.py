@@ -129,4 +129,4 @@ class RegulationSpider(scrapy.Spider):
             if month:
                 dt = datetime(int(year), month, int(day))
                 return int(dt.timestamp())
-        return None
+        return None 

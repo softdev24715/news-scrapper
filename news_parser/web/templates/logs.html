@@ -143,16 +143,17 @@
                     <option value="app">Application Logs</option>
                 </select>
                 
-                <!-- <label for="spiderFilter">Spider Filter:</label>
+                <label for="spiderFilter">Spider Filter:</label>
                 <select id="spiderFilter" onchange="loadLogs()">
                     <option value="">All Spiders</option>
-                </select> -->
+                </select>
                 
                 <label for="linesCount">Lines:</label>
                 <input type="number" id="linesCount" value="100" min="10" max="1000" onchange="loadLogs()">
                 
                 <button onclick="loadLogs()">Refresh</button>
                 <button onclick="clearLogs()">Clear Display</button>
+                <button onclick="testLogs()">Test Logs</button>
             </div>
         </div>
         
@@ -178,6 +179,11 @@
                 const spiders = await response.json();
                 const filter = document.getElementById('spiderFilter');
                 
+                if (!filter) {
+                    console.warn('Spider filter element not found');
+                    return;
+                }
+                
                 // Clear existing options except "All Spiders"
                 filter.innerHTML = '<option value="">All Spiders</option>';
                 
@@ -196,10 +202,12 @@
         // Load logs
         async function loadLogs() {
             const logType = document.getElementById('logType').value;
-            const spiderFilter = document.getElementById('spiderFilter').value;
+            const spiderFilterElement = document.getElementById('spiderFilter');
+            const spiderFilter = spiderFilterElement ? spiderFilterElement.value : '';
             const linesCount = document.getElementById('linesCount').value;
             const container = document.getElementById('logContainer');
             
+            console.log('Loading logs:', { logType, spiderFilter, linesCount });
             container.innerHTML = '<div class="loading">Loading logs...</div>';
             
             try {
@@ -208,8 +216,16 @@
                     url += `&spider=${spiderFilter}`;
                 }
                 
+                console.log('Fetching URL:', url);
                 const response = await fetch(url);
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                console.log('Response data:', data);
                 
                 if (data.error) {
                     container.innerHTML = `<div class="error">${data.error}</div>`;
@@ -267,6 +283,25 @@
             } else {
                 clearInterval(refreshInterval);
                 document.getElementById('autoRefreshBtn').textContent = 'Start Auto-refresh';
+            }
+        }
+        
+        // Test logs functionality
+        async function testLogs() {
+            try {
+                console.log('Testing logs...');
+                const response = await fetch('/api/test/logs');
+                const data = await response.json();
+                console.log('Test logs response:', data);
+                
+                if (data.status === 'ok') {
+                    alert(`Logs test successful!\n\nSpider log: ${data.spider_log.exists ? 'EXISTS' : 'MISSING'} (${data.spider_log.size} bytes)\nApp log: ${data.app_log.exists ? 'EXISTS' : 'MISSING'} (${data.app_log.size} bytes)\n\nLogs directory: ${data.logs_dir}`);
+                } else {
+                    alert('Logs test failed: ' + JSON.stringify(data));
+                }
+            } catch (error) {
+                console.error('Test logs error:', error);
+                alert('Test logs error: ' + error.message);
             }
         }
         
