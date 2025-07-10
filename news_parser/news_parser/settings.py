@@ -78,8 +78,8 @@ EXTENSIONS = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-#    "news_parser.pipelines.PostgreSQLPipeline": 400,
-   "news_parser.pipelines.NewsParserPipeline": 300,
+   "news_parser.pipelines.PostgreSQLPipeline": 400,
+#    "news_parser.pipelines.NewsParserPipeline": 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
