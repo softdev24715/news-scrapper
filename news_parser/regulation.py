@@ -20,26 +20,26 @@ from news_parser.models import LegalDocument, init_db
 # Load environment variables and configuration
 load_dotenv()
 
-def load_config():
-    config = configparser.ConfigParser()
-    config_path = os.path.join(os.path.dirname(__file__), 'config.ini')
+# def load_config():
+#     config = configparser.ConfigParser()
+#     config_path = os.path.join(os.path.dirname(__file__), 'config.ini')
     
-    if os.path.exists(config_path):
-        config.read(config_path)
-    else:
-        # Default configuration if config.ini doesn't exist
-        config['Database'] = {
-            'DATABASE_URL': 'postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres'
-        }
+#     if os.path.exists(config_path):
+#         config.read(config_path)
+#     else:
+#         # Default configuration if config.ini doesn't exist
+#         config['Database'] = {
+#             'DATABASE_URL': 'postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres'
+#         }
     
-    return config
+#     return config
 
-# Load configuration
-config = load_config()
-DATABASE_URL = os.getenv('DATABASE_URL', config.get('Database', 'DATABASE_URL', fallback='postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres'))
+# # Load configuration
+# config = load_config()
+# DATABASE_URL = os.getenv('DATABASE_URL', config.get('Database', 'DATABASE_URL', fallback='postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres'))
 
 # Initialize database
-db = init_db(DATABASE_URL)
+# db = init_db(DATABASE_URL)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -268,41 +268,41 @@ async def extract_structured_data(page, npa_id: str):
         }
         
         # Save to database
-        try:
-            # Check if document already exists
-            existing_doc = db.query(LegalDocument).filter(LegalDocument.url == url).first()
-            if existing_doc:
-                logger.info(f"Document already exists in database: {npa_id}")
-                return structured_data
+        # try:
+        #     # Check if document already exists
+        #     existing_doc = db.query(LegalDocument).filter(LegalDocument.url == url).first()
+        #     if existing_doc:
+        #         logger.info(f"Document already exists in database: {npa_id}")
+        #         return structured_data
             
-            # Create new legal document
-            legal_doc = LegalDocument(
-                id=structured_data["id"],
-                text=structured_data["text"],
-                original_id=structured_data["lawMetadata"]["originalId"],
-                doc_kind=structured_data["lawMetadata"]["docKind"],
-                title=structured_data["lawMetadata"]["title"],
-                source=structured_data["lawMetadata"]["source"],
-                url=structured_data["lawMetadata"]["url"],
-                published_at=structured_data["lawMetadata"]["publishedAt"],
-                parsed_at=structured_data["lawMetadata"]["parsedAt"],
-                jurisdiction=structured_data["lawMetadata"]["jurisdiction"],
-                language=structured_data["lawMetadata"]["language"],
-                stage=structured_data["lawMetadata"]["stage"],
-                discussion_period=structured_data["lawMetadata"]["discussionPeriod"],
-                explanatory_note=structured_data["lawMetadata"]["explanatoryNote"],
-                summary_reports=structured_data["lawMetadata"]["summaryReports"],
-                comment_stats=structured_data["lawMetadata"]["commentStats"],
-                files=structured_data["lawMetadata"]["files"]
-            )
+        #     # Create new legal document
+        #     legal_doc = LegalDocument(
+        #         id=structured_data["id"],
+        #         text=structured_data["text"],
+        #         original_id=structured_data["lawMetadata"]["originalId"],
+        #         doc_kind=structured_data["lawMetadata"]["docKind"],
+        #         title=structured_data["lawMetadata"]["title"],
+        #         source=structured_data["lawMetadata"]["source"],
+        #         url=structured_data["lawMetadata"]["url"],
+        #         published_at=structured_data["lawMetadata"]["publishedAt"],
+        #         parsed_at=structured_data["lawMetadata"]["parsedAt"],
+        #         jurisdiction=structured_data["lawMetadata"]["jurisdiction"],
+        #         language=structured_data["lawMetadata"]["language"],
+        #         stage=structured_data["lawMetadata"]["stage"],
+        #         discussion_period=structured_data["lawMetadata"]["discussionPeriod"],
+        #         explanatory_note=structured_data["lawMetadata"]["explanatoryNote"],
+        #         summary_reports=structured_data["lawMetadata"]["summaryReports"],
+        #         comment_stats=structured_data["lawMetadata"]["commentStats"],
+        #         files=structured_data["lawMetadata"]["files"]
+        #     )
             
-            db.add(legal_doc)
-            db.commit()
-            logger.info(f"Saved document to database: {npa_id}")
+        #     db.add(legal_doc)
+        #     db.commit()
+        #     logger.info(f"Saved document to database: {npa_id}")
             
-        except Exception as e:
-            logger.error(f"Error saving to database: {e}")
-            db.rollback()
+        # except Exception as e:
+        #     logger.error(f"Error saving to database: {e}")
+        #     db.rollback()
         
         return structured_data
 
@@ -406,15 +406,15 @@ async def main():
     results = await process_urls(urls, concurrency=3)
     
     # Save results to JSON file as backup
-    # timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    # json_filename = f"regulation_structured_batch_{timestamp}.json"
-    # with open(json_filename, 'w', encoding='utf-8') as f:
-    #     json.dump(results, f, ensure_ascii=False, indent=2)
-    # logger.info(f"Batch structured data saved to: {json_filename}")
+    timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    json_filename = f"regulation_structured_batch_{timestamp}.json"
+    with open(json_filename, 'w', encoding='utf-8') as f:
+        json.dump(results, f, ensure_ascii=False, indent=2)
+    logger.info(f"Batch structured data saved to: {json_filename}")
     
     # Close database connection
-    db.close()
-    logger.info("Database connection closed")
+    # db.close()
+    # logger.info("Database connection closed")
 
 if __name__ == "__main__":
     asyncio.run(main())
