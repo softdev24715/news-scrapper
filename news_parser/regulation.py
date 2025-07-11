@@ -453,11 +453,11 @@ async def main():
     results = await process_urls(urls, concurrency=3)
     
     # Save results to JSON file as backup
-    timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    json_filename = f"regulation_structured_batch_{timestamp}.json"
-    with open(json_filename, 'w', encoding='utf-8') as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
-    logger.info(f"Batch structured data saved to: {json_filename}")
+    # timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    # json_filename = f"regulation_structured_batch_{timestamp}.json"
+    # with open(json_filename, 'w', encoding='utf-8') as f:
+    #     json.dump(results, f, ensure_ascii=False, indent=2)
+    # logger.info(f"Batch structured data saved to: {json_filename}")
     
     # Close database connection
     db.close()
