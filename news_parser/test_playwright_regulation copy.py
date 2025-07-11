@@ -77,6 +77,7 @@ async def extract_structured_data(page, npa_id: str = "158210"):
             await page.wait_for_timeout(3000)
             
             # Extract data from main page
+            # Extract data from main page
             title = await page.title()
             logger.info(f"Page title: {title}")
             

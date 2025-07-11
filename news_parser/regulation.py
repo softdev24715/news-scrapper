@@ -101,8 +101,22 @@ async def extract_structured_data(page, npa_id: str):
             logger.warning("Could not find 'Этапы проекта', proceeding anyway...")
 
         await page.wait_for_timeout(1000)
-        title = await page.title()
-        logger.info(f"Page title: {title}")
+        
+        # Get the actual regulation title from the page content
+        try:
+            title_element = await page.query_selector('.public_view_npa_title_text')
+            if title_element:
+                title = await title_element.inner_text()
+                title = title.strip()
+                logger.info(f"Regulation title: {title}")
+            else:
+                # Fallback to page title if element not found
+                title = await page.title()
+                logger.warning(f"Title element not found, using page title: {title}")
+        except Exception as e:
+            logger.warning(f"Error extracting title: {e}")
+            title = await page.title()
+            logger.info(f"Using page title as fallback: {title}")
 
         discussion_start = None
         discussion_end = None
@@ -230,7 +244,7 @@ async def extract_structured_data(page, npa_id: str):
 
         structured_data = {
             "id": str(uuid.uuid4()),
-            "text": title,
+            "text": "",
             "lawMetadata": {
                 "originalId": npa_id,
                 "docKind": doc_kind,
