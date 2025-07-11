@@ -20,29 +20,39 @@ from news_parser.models import LegalDocument, init_db
 # Load environment variables and configuration
 load_dotenv()
 
-# def load_config():
-#     config = configparser.ConfigParser()
-#     config_path = os.path.join(os.path.dirname(__file__), 'config.ini')
+def setup_logging():
+    """Setup logging configuration to use the centralized spider.log"""
+    # Create logs directory if it doesn't exist
+    log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+    os.makedirs(log_dir, exist_ok=True)
     
-#     if os.path.exists(config_path):
-#         config.read(config_path)
-#     else:
-#         # Default configuration if config.ini doesn't exist
-#         config['Database'] = {
-#             'DATABASE_URL': 'postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres'
-#         }
+    # Create logger
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
     
-#     return config
+    # Clear any existing handlers
+    logger.handlers.clear()
+    
+    # Create formatter
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    
+    # File handler - save all logs to spider.log
+    log_file = os.path.join(log_dir, 'spider.log')
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
+    # Console handler - for immediate feedback
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    return logger
 
-# # Load configuration
-# config = load_config()
-# DATABASE_URL = os.getenv('DATABASE_URL', config.get('Database', 'DATABASE_URL', fallback='postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres'))
-
-# Initialize database
-# db = init_db(DATABASE_URL)
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Setup logging
+logger = setup_logging()
 
 def parse_date(date_str):
     if not date_str:
