@@ -201,38 +201,53 @@ def run_spider_with_logging(spider_name):
         spider_logger.info(f"Working directory: {project_path}")
         spider_logger.info(f"Python path: {PYTHON_PATH}")
         
-        # Run the spider with output capture
-        process = subprocess.Popen(
-            [PYTHON_PATH, '-m', 'scrapy', 'crawl', spider_name],
-            cwd=project_path,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-            universal_newlines=True
-        )
-        
-        # Log real-time output
-        if process.stdout:
-            while True:
-                output = process.stdout.readline()
-                if output == '' and process.poll() is not None:
-                    break
-                if output:
-                    spider_logger.info(f"[{spider_name}] {output.strip()}")
-        
-        # Get return code and any remaining output
-        return_code = process.poll()
-        _, stderr = process.communicate()
-        
-        if stderr:
-            spider_logger.error(f"[{spider_name}] Error output: {stderr}")
-        
-        if return_code == 0:
-            spider_logger.info(f"Spider {spider_name} completed successfully")
-            return True
+        # Special handling for regulation spider (Playwright-based)
+        if spider_name == 'regulation':
+            spider_logger.info(f"Running Playwright-based regulation scraper")
+            process = subprocess.Popen(
+                [PYTHON_PATH, 'regulation.py'],
+                cwd=project_path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
         else:
-            spider_logger.error(f"Spider {spider_name} failed with return code: {return_code}")
+            # Run the regular Scrapy spider
+            process = subprocess.Popen(
+                [PYTHON_PATH, '-m', 'scrapy', 'crawl', spider_name],
+                cwd=project_path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
+        
+        # Wait for completion with timeout (non-blocking)
+        try:
+            stdout, stderr = process.communicate(timeout=3600)  # 1 hour timeout
+            
+            # Log any output
+            if stdout:
+                for line in stdout.splitlines():
+                    if line.strip():
+                        spider_logger.info(f"[{spider_name}] {line.strip()}")
+            
+            if stderr:
+                spider_logger.error(f"[{spider_name}] Error output: {stderr}")
+            
+            if process.returncode == 0:
+                spider_logger.info(f"Spider {spider_name} completed successfully")
+                return True
+            else:
+                spider_logger.error(f"Spider {spider_name} failed with return code: {process.returncode}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            spider_logger.error(f"Spider {spider_name} timed out after 1 hour")
+            process.terminate()
             return False
             
     except Exception as e:
@@ -245,13 +260,23 @@ def run_spider(spider_name):
         # Get the absolute path to the news_parser directory
         project_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         
-        # Run the spider
-        result = subprocess.run(
-            [PYTHON_PATH, '-m', 'scrapy', 'crawl', spider_name],
-            cwd=project_path,
-            capture_output=True,
-            text=True
-        )
+        # Special handling for regulation spider (Playwright-based)
+        if spider_name == 'regulation':
+            logger.info(f"Running Playwright-based regulation scraper")
+            result = subprocess.run(
+                [PYTHON_PATH, 'regulation.py'],
+                cwd=project_path,
+                capture_output=True,
+                text=True
+            )
+        else:
+            # Run the regular Scrapy spider
+            result = subprocess.run(
+                [PYTHON_PATH, '-m', 'scrapy', 'crawl', spider_name],
+                cwd=project_path,
+                capture_output=True,
+                text=True
+            )
         
         if result.returncode == 0:
             return jsonify({'status': 'success', 'message': f'Spider {spider_name} started successfully'})

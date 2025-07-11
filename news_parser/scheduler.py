@@ -153,10 +153,17 @@ def run_spider_with_monitoring(spider_name):
     update_spider_running_status(spider_name, 'running', datetime.utcnow())
     
     try:
-        # Start spider process without date parameters (spiders handle their own date filtering)
-        process = subprocess.Popen([
-            PYTHON_PATH, '-m', 'scrapy', 'crawl', spider_name
-        ], cwd=SCRAPY_PROJECT_PATH)
+        # Special handling for regulation spider (Playwright-based)
+        if spider_name == 'regulation':
+            logger.info(f"Running Playwright-based regulation scraper")
+            process = subprocess.Popen([
+                PYTHON_PATH, 'regulation.py'
+            ], cwd=SCRAPY_PROJECT_PATH)
+        else:
+            # Start regular Scrapy spider process
+            process = subprocess.Popen([
+                PYTHON_PATH, '-m', 'scrapy', 'crawl', spider_name
+            ], cwd=SCRAPY_PROJECT_PATH)
         
         # Wait for completion with timeout
         try:

@@ -116,8 +116,13 @@ This parsing system will enable efficient and automated data collection from leg
       "mimeType": "application/pdf"
     },
     "summaryReports": [],
-    "commentStats": { "total": 137 }
+    "commentStats": { "total": 137 },
+    "files":{}
   }
 }
 
 sudo journalctl -u news-scraper -f
+
+
+
+https://docs.eaeunion.org/documents/?PAGEN_1=1
