@@ -20,6 +20,27 @@ from news_parser.models import LegalDocument, init_db
 # Load environment variables and configuration
 load_dotenv()
 
+def load_config():
+    config = configparser.ConfigParser()
+    config_path = os.path.join(os.path.dirname(__file__), 'config.ini')
+    
+    if os.path.exists(config_path):
+        config.read(config_path)
+    else:
+        # Default configuration if config.ini doesn't exist
+        config['Database'] = {
+            'DATABASE_URL': 'postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres'
+        }
+    
+    return config
+
+# Load configuration
+config = load_config()
+DATABASE_URL = os.getenv('DATABASE_URL', config.get('Database', 'DATABASE_URL', fallback='postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres'))
+
+# Initialize database
+db = init_db(DATABASE_URL)
+
 def setup_logging():
     """Setup logging configuration to use the centralized spider.log"""
     # Create logs directory if it doesn't exist
@@ -103,14 +124,16 @@ async def extract_structured_data(page, npa_id: str):
     logger.info(f"Fetching URL: {url}")
 
     try:
-        await page.goto(url, wait_until='domcontentloaded', timeout=120000)
+        await page.goto(url, wait_until='networkidle', timeout=180000)  # Changed to networkidle for full page load
         try:
-            await page.wait_for_selector('text=Этапы проекта', timeout=30000)
+            await page.wait_for_selector('text=Этапы проекта', timeout=60000)  # Increased from 30000 to 60000
             logger.info("Found 'Этапы проекта' content")
         except Exception:
             logger.warning("Could not find 'Этапы проекта', proceeding anyway...")
 
-        await page.wait_for_timeout(1000)
+        # Wait for page to be fully loaded and stable
+        await page.wait_for_load_state('networkidle', timeout=30000)
+        await page.wait_for_timeout(3000)  # Increased wait time for stability
         
         # Get the actual regulation title from the page content
         try:
@@ -199,7 +222,16 @@ async def extract_structured_data(page, npa_id: str):
             for modal_button in modal_triggers:
                 try:
                     await modal_button.click()
-                    await page.wait_for_selector('.k-window-content', timeout=15000)
+                    
+                    # Wait for modal to appear and be fully loaded
+                    await page.wait_for_selector('.k-window-content', timeout=45000)  # Increased from 15000 to 45000
+                    
+                    # Wait for modal content to be fully loaded
+                    await page.wait_for_load_state('networkidle', timeout=30000)
+                    
+                    # Additional wait for modal animations to complete
+                    await page.wait_for_timeout(2000)
+                    
                     modal_html = await page.inner_html('.k-window-content')
                     
                     # More robust file pattern matching
@@ -226,7 +258,15 @@ async def extract_structured_data(page, npa_id: str):
                     close_btn = await page.query_selector('.k-window .closeBtn')
                     if close_btn:
                         await close_btn.click()
-                    await page.wait_for_timeout(500)
+                        # Wait for modal to close completely
+                        await page.wait_for_timeout(1500)  # Increased wait time for modal close
+                    else:
+                        # Try alternative close methods if close button not found
+                        try:
+                            await page.keyboard.press('Escape')
+                            await page.wait_for_timeout(1000)
+                        except Exception:
+                            logger.warning("Could not close modal with Escape key")
                     
                 except Exception as e:
                     logger.warning(f"Error processing modal: {e}")
@@ -275,41 +315,41 @@ async def extract_structured_data(page, npa_id: str):
         }
         
         # Save to database
-        # try:
-        #     # Check if document already exists
-        #     existing_doc = db.query(LegalDocument).filter(LegalDocument.url == url).first()
-        #     if existing_doc:
-        #         logger.info(f"Document already exists in database: {npa_id}")
-        #         return structured_data
+        try:
+            # Check if document already exists
+            existing_doc = db.query(LegalDocument).filter(LegalDocument.url == url).first()
+            if existing_doc:
+                logger.info(f"Document already exists in database: {npa_id}")
+                return structured_data
             
-        #     # Create new legal document
-        #     legal_doc = LegalDocument(
-        #         id=structured_data["id"],
-        #         text=structured_data["text"],
-        #         original_id=structured_data["lawMetadata"]["originalId"],
-        #         doc_kind=structured_data["lawMetadata"]["docKind"],
-        #         title=structured_data["lawMetadata"]["title"],
-        #         source=structured_data["lawMetadata"]["source"],
-        #         url=structured_data["lawMetadata"]["url"],
-        #         published_at=structured_data["lawMetadata"]["publishedAt"],
-        #         parsed_at=structured_data["lawMetadata"]["parsedAt"],
-        #         jurisdiction=structured_data["lawMetadata"]["jurisdiction"],
-        #         language=structured_data["lawMetadata"]["language"],
-        #         stage=structured_data["lawMetadata"]["stage"],
-        #         discussion_period=structured_data["lawMetadata"]["discussionPeriod"],
-        #         explanatory_note=structured_data["lawMetadata"]["explanatoryNote"],
-        #         summary_reports=structured_data["lawMetadata"]["summaryReports"],
-        #         comment_stats=structured_data["lawMetadata"]["commentStats"],
-        #         files=structured_data["lawMetadata"]["files"]
-        #     )
+            # Create new legal document
+            legal_doc = LegalDocument(
+                id=structured_data["id"],
+                text=structured_data["text"],
+                original_id=structured_data["lawMetadata"]["originalId"],
+                doc_kind=structured_data["lawMetadata"]["docKind"],
+                title=structured_data["lawMetadata"]["title"],
+                source=structured_data["lawMetadata"]["source"],
+                url=structured_data["lawMetadata"]["url"],
+                published_at=structured_data["lawMetadata"]["publishedAt"],
+                parsed_at=structured_data["lawMetadata"]["parsedAt"],
+                jurisdiction=structured_data["lawMetadata"]["jurisdiction"],
+                language=structured_data["lawMetadata"]["language"],
+                stage=structured_data["lawMetadata"]["stage"],
+                discussion_period=structured_data["lawMetadata"]["discussionPeriod"],
+                explanatory_note=structured_data["lawMetadata"]["explanatoryNote"],
+                summary_reports=structured_data["lawMetadata"]["summaryReports"],
+                comment_stats=structured_data["lawMetadata"]["commentStats"],
+                files=structured_data["lawMetadata"]["files"]
+            )
             
-        #     db.add(legal_doc)
-        #     db.commit()
-        #     logger.info(f"Saved document to database: {npa_id}")
+            db.add(legal_doc)
+            db.commit()
+            logger.info(f"Saved document to database: {npa_id}")
             
-        # except Exception as e:
-        #     logger.error(f"Error saving to database: {e}")
-        #     db.rollback()
+        except Exception as e:
+            logger.error(f"Error saving to database: {e}")
+            db.rollback()
         
         return structured_data
 
@@ -420,8 +460,8 @@ async def main():
     logger.info(f"Batch structured data saved to: {json_filename}")
     
     # Close database connection
-    # db.close()
-    # logger.info("Database connection closed")
+    db.close()
+    logger.info("Database connection closed")
 
 if __name__ == "__main__":
     asyncio.run(main())
