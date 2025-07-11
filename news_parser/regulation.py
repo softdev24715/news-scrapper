@@ -256,13 +256,10 @@ async def extract_structured_data(page, npa_id: str):
                 "jurisdiction": "RU",
                 "language": "ru",
                 "stage": "public_discussion",
-                "discussionPeriod": {
-                    "start": discussion_start,
-                    "end": discussion_end
-                } if discussion_start and discussion_end else None,
-                "explanatoryNote": explanatory_note,
-                "summaryReports": summary_reports,
-                "commentStats": comment_stats,
+                "discussionPeriod": None,
+                "explanatoryNote": None,
+                "summaryReports": None,
+                "commentStats": None,
                 "files": files if files else None
             }
         }
