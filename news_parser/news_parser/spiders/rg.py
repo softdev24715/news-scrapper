@@ -15,31 +15,32 @@ class RGSpider(SitemapSpider):
     
     def __init__(self, *args, **kwargs):
         super(RGSpider, self).__init__(*args, **kwargs)
-        # Get today's and yesterday's dates for filtering
-        today = datetime.now()
-        yesterday = today - timedelta(days=1)
-        self.target_dates = [
-            today.strftime('%Y-%m-%d'),
-            yesterday.strftime('%Y-%m-%d')
-        ]
+        # Target date range: July 9th, 2025 to today
+        start_date = datetime.now() - timedelta(days=1)
+        end_date = datetime.now()
         
-        # Calculate yesterday's start and end timestamps
-        yesterday_start = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
-        yesterday_end = yesterday.replace(hour=23, minute=59, second=59)
+        # Generate all dates in the range
+        self.target_dates = []
+        current_date = start_date
+        while current_date <= end_date:
+            self.target_dates.append(current_date.strftime('%Y-%m-%d'))
+            current_date += timedelta(days=1)
         
-        # Calculate today's start and end timestamps
-        today_start = today.replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = today_start.replace(hour=23, minute=59, second=59)
+        # Calculate start and end timestamps for sitemap
+        start_timestamp = int(start_date.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+        end_timestamp = int(end_date.replace(hour=23, minute=59, second=59).timestamp())
         
         # Convert to Unix timestamps
-        self.start_timestamp = int(yesterday_start.timestamp())
-        self.end_timestamp = int(today_end.timestamp())
+        self.start_timestamp = start_timestamp
+        self.end_timestamp = end_timestamp
         
-        # Construct sitemap URL for both days
+        # Construct sitemap URL for the date range
         self.sitemap_urls = [f'https://rg.ru/sitemaps/index.xml?date_start={self.start_timestamp}&date_end={self.end_timestamp}']
         
-        logging.info(f"Initializing RG spider for dates: {self.target_dates}")
+        logging.info(f"Initializing RG spider for date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+        logging.info(f"Target dates: {self.target_dates}")
         logging.info(f"Using sitemap URL: {self.sitemap_urls[0]}")
+        logging.info(f"Timestamp range: {start_timestamp} to {end_timestamp}")
         logging.info(f"Current processed URLs count: {len(self.processed_urls)}")
 
     def sitemap_filter(self, entries):
@@ -89,18 +90,51 @@ class RGSpider(SitemapSpider):
         else:
             logging.warning(f"Could not find main content div with selector .PageArticleContent_content__mdxza")
         
-        # Get article timestamp if available
+        # Get article timestamp from meta tag
         published_at = None
         published_at_iso = None
-        timestamp = response.css('time.article__date::attr(datetime)').get()
-        if timestamp:
-            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-            published_at = int(dt.timestamp())
-            published_at_iso = dt.isoformat()
+        
+        # Try to get timestamp from meta tag first
+        timestamp_meta = response.css('meta[property="article:published_time"]::attr(content)').get()
+        if timestamp_meta:
+            try:
+                # Handle timezone format: 2025-07-12T20:18:00
+                if '+' in timestamp_meta:
+                    # Remove timezone for parsing
+                    date_part = timestamp_meta.split('+')[0]
+                    dt = datetime.fromisoformat(date_part)
+                else:
+                    dt = datetime.fromisoformat(timestamp_meta)
+                
+                published_at = int(dt.timestamp())
+                published_at_iso = dt.isoformat()
+                logging.info(f"Parsed article date from meta tag: {dt}")
+            except ValueError as e:
+                logging.warning(f"Could not parse date '{timestamp_meta}' from meta tag: {e}")
+                # Fallback to current time
+                current_time = datetime.now()
+                published_at = int(current_time.timestamp())
+                published_at_iso = current_time.isoformat()
         else:
-            current_time = datetime.now()
-            published_at = int(current_time.timestamp())
-            published_at_iso = current_time.isoformat()
+            # Fallback to time element if meta tag not found
+            timestamp = response.css('time.article__date::attr(datetime)').get()
+            if timestamp:
+                try:
+                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    published_at = int(dt.timestamp())
+                    published_at_iso = dt.isoformat()
+                    logging.info(f"Parsed article date from time element: {dt}")
+                except ValueError:
+                    logging.warning(f"Could not parse date '{timestamp}' from time element")
+                    current_time = datetime.now()
+                    published_at = int(current_time.timestamp())
+                    published_at_iso = current_time.isoformat()
+            else:
+                # Last resort: use current time
+                current_time = datetime.now()
+                published_at = int(current_time.timestamp())
+                published_at_iso = current_time.isoformat()
+                logging.warning("No date found in article (neither meta tag nor time element), using current time")
         
         # Create article with required structure matching Note.md format
         article = NewsArticle()
