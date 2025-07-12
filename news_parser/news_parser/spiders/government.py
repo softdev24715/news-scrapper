@@ -25,8 +25,8 @@ class GovernmentSpider(scrapy.Spider):
         """
         Generate requests for today's and yesterday's news
         """
-        today = datetime.now()
-        yesterday = today - timedelta(days=1)
+        today = datetime.now() - timedelta(days=2)
+        yesterday = today - timedelta(days=3)
         
         # Create URLs for today and yesterday
         urls = []
