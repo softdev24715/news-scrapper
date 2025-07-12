@@ -33,6 +33,7 @@ class KremlinSpider(scrapy.Spider):
         # Try multiple dates: yesterday, today, and day before yesterday
         dates_to_try = [
             (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'),  # yesterday
+            (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d'),  # day before yesterday
             datetime.now().strftime('%Y-%m-%d'),  # today
         ]
         

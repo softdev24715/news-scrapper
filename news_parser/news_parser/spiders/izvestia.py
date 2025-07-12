@@ -14,13 +14,15 @@ class IzvestiaSpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super(IzvestiaSpider, self).__init__(*args, **kwargs)
         # Get today's and yesterday's dates for filtering
-        today = datetime.now()
+        today = datetime.now()  # ✅ Fixed: Use actual today
         yesterday = today - timedelta(days=1)
         self.target_dates = [
             today.strftime('%Y-%m-%d'),
             yesterday.strftime('%Y-%m-%d')
         ]
         logging.info(f"Initializing Izvestia spider for dates: {self.target_dates}")
+        logging.info(f"Current time: {today}")
+        logging.info(f"Yesterday time: {yesterday}")
 
     def start_requests(self):
         """
@@ -97,8 +99,8 @@ class IzvestiaSpider(scrapy.Spider):
                     )
                     
                     # Limit to first 30 articles for testing
-                    if processed_count >= 30:
-                        break
+                    # if processed_count >= 30:
+                    #     break
                 else:
                     self.logger.debug(f"Skipping article from {entry_date} (not today or yesterday): {loc}")
         
@@ -137,7 +139,7 @@ class IzvestiaSpider(scrapy.Spider):
             yield scrapy.Request(
                 url=url, 
                 callback=self.parse_article_page,
-                meta={'entry_date': datetime.now().strftime('%Y-%m-%d')}  # Assume today for fallback
+                meta={'entry_date': datetime.now().strftime('%Y-%m-%d')}  # Use actual today for fallback
             )
 
     def parse_article_page(self, response):
@@ -159,19 +161,31 @@ class IzvestiaSpider(scrapy.Spider):
         pub_date_str = soup.select_one('time.article-header__date')
         article_date = None
         if pub_date_str and pub_date_str.has_attr('datetime'):
-            try:
-                dt = datetime.fromisoformat(pub_date_str['datetime'])
-                published_at = int(dt.timestamp())
-                published_at_iso = dt.isoformat()
-                article_date = dt.strftime('%Y-%m-%d')
-                self.logger.info(f"Parsed article date: {article_date}")
-            except ValueError:
-                # Fallback if parsing fails
+            datetime_attr = pub_date_str['datetime']
+            # Ensure it's a string, not a list
+            if isinstance(datetime_attr, list):
+                datetime_attr = datetime_attr[0] if datetime_attr else None
+            
+            if datetime_attr:
+                try:
+                    dt = datetime.fromisoformat(datetime_attr)
+                    published_at = int(dt.timestamp())
+                    published_at_iso = dt.isoformat()
+                    article_date = dt.strftime('%Y-%m-%d')
+                    self.logger.info(f"Parsed article date: {article_date}")
+                except ValueError:
+                    # Fallback if parsing fails
+                    current_time = datetime.now()
+                    published_at = int(current_time.timestamp())
+                    published_at_iso = current_time.isoformat()
+                    article_date = current_time.strftime('%Y-%m-%d')
+                    self.logger.warning(f"Could not parse date '{datetime_attr}', using current time")
+            else:
                 current_time = datetime.now()
                 published_at = int(current_time.timestamp())
                 published_at_iso = current_time.isoformat()
                 article_date = current_time.strftime('%Y-%m-%d')
-                self.logger.warning(f"Could not parse date '{pub_date_str['datetime']}', using current time")
+                self.logger.warning("No datetime attribute found, using current time")
         else:
             current_time = datetime.now()
             published_at = int(current_time.timestamp())
