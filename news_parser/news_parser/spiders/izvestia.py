@@ -157,41 +157,76 @@ class IzvestiaSpider(scrapy.Spider):
         title_tag = soup.select_one('h1')
         title = title_tag.get_text(strip=True) if title_tag else None
 
-        # Get publication date
-        pub_date_str = soup.select_one('time.article-header__date')
+        # Get publication date from meta tag
+        pub_date_meta = soup.select_one('meta[property="article:published_time"]')
         article_date = None
-        if pub_date_str and pub_date_str.has_attr('datetime'):
-            datetime_attr = pub_date_str['datetime']
+        
+        if pub_date_meta and pub_date_meta.has_attr('content'):
+            datetime_attr = pub_date_meta['content']
             # Ensure it's a string, not a list
             if isinstance(datetime_attr, list):
                 datetime_attr = datetime_attr[0] if datetime_attr else None
             
             if datetime_attr:
                 try:
-                    dt = datetime.fromisoformat(datetime_attr)
+                    # Handle timezone format: 2025-07-08T08:00:00+03:00
+                    if '+' in datetime_attr:
+                        # Remove timezone for parsing
+                        date_part = datetime_attr.split('+')[0]
+                        dt = datetime.fromisoformat(date_part)
+                    else:
+                        dt = datetime.fromisoformat(datetime_attr)
+                    
                     published_at = int(dt.timestamp())
                     published_at_iso = dt.isoformat()
                     article_date = dt.strftime('%Y-%m-%d')
-                    self.logger.info(f"Parsed article date: {article_date}")
-                except ValueError:
+                    self.logger.info(f"Parsed article date from meta tag: {article_date}")
+                except ValueError as e:
                     # Fallback if parsing fails
                     current_time = datetime.now()
                     published_at = int(current_time.timestamp())
                     published_at_iso = current_time.isoformat()
                     article_date = current_time.strftime('%Y-%m-%d')
-                    self.logger.warning(f"Could not parse date '{datetime_attr}', using current time")
+                    self.logger.warning(f"Could not parse date '{datetime_attr}' from meta tag: {e}, using current time")
             else:
                 current_time = datetime.now()
                 published_at = int(current_time.timestamp())
                 published_at_iso = current_time.isoformat()
                 article_date = current_time.strftime('%Y-%m-%d')
-                self.logger.warning("No datetime attribute found, using current time")
+                self.logger.warning("No content attribute found in meta tag, using current time")
         else:
-            current_time = datetime.now()
-            published_at = int(current_time.timestamp())
-            published_at_iso = current_time.isoformat()
-            article_date = current_time.strftime('%Y-%m-%d')
-            self.logger.warning("No date found in article, using current time")
+            # Fallback to time element if meta tag not found
+            pub_date_str = soup.select_one('time.article-header__date')
+            if pub_date_str and pub_date_str.has_attr('datetime'):
+                datetime_attr = pub_date_str['datetime']
+                if isinstance(datetime_attr, list):
+                    datetime_attr = datetime_attr[0] if datetime_attr else None
+                
+                if datetime_attr:
+                    try:
+                        dt = datetime.fromisoformat(datetime_attr)
+                        published_at = int(dt.timestamp())
+                        published_at_iso = dt.isoformat()
+                        article_date = dt.strftime('%Y-%m-%d')
+                        self.logger.info(f"Parsed article date from time element: {article_date}")
+                    except ValueError:
+                        current_time = datetime.now()
+                        published_at = int(current_time.timestamp())
+                        published_at_iso = current_time.isoformat()
+                        article_date = current_time.strftime('%Y-%m-%d')
+                        self.logger.warning(f"Could not parse date '{datetime_attr}' from time element, using current time")
+                else:
+                    current_time = datetime.now()
+                    published_at = int(current_time.timestamp())
+                    published_at_iso = current_time.isoformat()
+                    article_date = current_time.strftime('%Y-%m-%d')
+                    self.logger.warning("No datetime attribute found in time element, using current time")
+            else:
+                current_time = datetime.now()
+                published_at = int(current_time.timestamp())
+                published_at_iso = current_time.isoformat()
+                article_date = current_time.strftime('%Y-%m-%d')
+                self.logger.warning("No date found in article (neither meta tag nor time element), using current time")
 
         # Check if the article date is from today or yesterday
         if article_date not in self.target_dates:
