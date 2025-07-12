@@ -14,13 +14,15 @@ class IzvestiaSpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super(IzvestiaSpider, self).__init__(*args, **kwargs)
         # Get today's and yesterday's dates for filtering
-        today = datetime.now()
+        today = datetime.now()  # ✅ Fixed: Use actual today
         yesterday = today - timedelta(days=1)
         self.target_dates = [
             today.strftime('%Y-%m-%d'),
             yesterday.strftime('%Y-%m-%d')
         ]
         logging.info(f"Initializing Izvestia spider for dates: {self.target_dates}")
+        logging.info(f"Current time: {today}")
+        logging.info(f"Yesterday time: {yesterday}")
 
     def start_requests(self):
         """
@@ -87,20 +89,20 @@ class IzvestiaSpider(scrapy.Spider):
                 # Extract date from lastmod (format: 2025-07-02T10:30:00+03:00)
                 entry_date = lastmod.split('T')[0] if 'T' in lastmod else lastmod[:10]
                 
-                if entry_date in self.target_dates:
-                    self.logger.info(f"Found article from {entry_date}: {loc}")
-                    processed_count += 1
-                    yield scrapy.Request(
-                        url=loc, 
-                        callback=self.parse_article_page,
-                        meta={'entry_date': entry_date}
-                    )
+                # if entry_date in self.target_dates:
+                self.logger.info(f"Found article from {entry_date}: {loc}")
+                processed_count += 1
+                yield scrapy.Request(
+                    url=loc, 
+                    callback=self.parse_article_page,
+                    meta={'entry_date': entry_date}
+                )
                     
                     # Limit to first 30 articles for testing
-                    if processed_count >= 30:
-                        break
-                else:
-                    self.logger.debug(f"Skipping article from {entry_date} (not today or yesterday): {loc}")
+                    # if processed_count >= 30:
+                    #     break
+                # else:
+                #     self.logger.debug(f"Skipping article from {entry_date} (not today or yesterday): {loc}")
         
         self.logger.info(f"Processed {processed_count} article URLs from target dates")
 
@@ -137,7 +139,7 @@ class IzvestiaSpider(scrapy.Spider):
             yield scrapy.Request(
                 url=url, 
                 callback=self.parse_article_page,
-                meta={'entry_date': datetime.now().strftime('%Y-%m-%d')}  # Assume today for fallback
+                meta={'entry_date': datetime.now().strftime('%Y-%m-%d')}  # Use actual today for fallback
             )
 
     def parse_article_page(self, response):
@@ -155,34 +157,81 @@ class IzvestiaSpider(scrapy.Spider):
         title_tag = soup.select_one('h1')
         title = title_tag.get_text(strip=True) if title_tag else None
 
-        # Get publication date
-        pub_date_str = soup.select_one('time.article-header__date')
+        # Get publication date from meta tag
+        pub_date_meta = soup.select_one('meta[property="article:published_time"]')
         article_date = None
-        if pub_date_str and pub_date_str.has_attr('datetime'):
-            try:
-                dt = datetime.fromisoformat(pub_date_str['datetime'])
-                published_at = int(dt.timestamp())
-                published_at_iso = dt.isoformat()
-                article_date = dt.strftime('%Y-%m-%d')
-                self.logger.info(f"Parsed article date: {article_date}")
-            except ValueError:
-                # Fallback if parsing fails
+        
+        if pub_date_meta and pub_date_meta.has_attr('content'):
+            datetime_attr = pub_date_meta['content']
+            # Ensure it's a string, not a list
+            if isinstance(datetime_attr, list):
+                datetime_attr = datetime_attr[0] if datetime_attr else None
+            
+            if datetime_attr:
+                try:
+                    # Handle timezone format: 2025-07-08T08:00:00+03:00
+                    if '+' in datetime_attr:
+                        # Remove timezone for parsing
+                        date_part = datetime_attr.split('+')[0]
+                        dt = datetime.fromisoformat(date_part)
+                    else:
+                        dt = datetime.fromisoformat(datetime_attr)
+                    
+                    published_at = int(dt.timestamp())
+                    published_at_iso = dt.isoformat()
+                    article_date = dt.strftime('%Y-%m-%d')
+                    self.logger.info(f"Parsed article date from meta tag: {article_date}")
+                except ValueError as e:
+                    # Fallback if parsing fails
+                    current_time = datetime.now()
+                    published_at = int(current_time.timestamp())
+                    published_at_iso = current_time.isoformat()
+                    article_date = current_time.strftime('%Y-%m-%d')
+                    self.logger.warning(f"Could not parse date '{datetime_attr}' from meta tag: {e}, using current time")
+            else:
                 current_time = datetime.now()
                 published_at = int(current_time.timestamp())
                 published_at_iso = current_time.isoformat()
                 article_date = current_time.strftime('%Y-%m-%d')
-                self.logger.warning(f"Could not parse date '{pub_date_str['datetime']}', using current time")
+                self.logger.warning("No content attribute found in meta tag, using current time")
         else:
-            current_time = datetime.now()
-            published_at = int(current_time.timestamp())
-            published_at_iso = current_time.isoformat()
-            article_date = current_time.strftime('%Y-%m-%d')
-            self.logger.warning("No date found in article, using current time")
+            # Fallback to time element if meta tag not found
+            pub_date_str = soup.select_one('time.article-header__date')
+            if pub_date_str and pub_date_str.has_attr('datetime'):
+                datetime_attr = pub_date_str['datetime']
+                if isinstance(datetime_attr, list):
+                    datetime_attr = datetime_attr[0] if datetime_attr else None
+                
+                if datetime_attr:
+                    try:
+                        dt = datetime.fromisoformat(datetime_attr)
+                        published_at = int(dt.timestamp())
+                        published_at_iso = dt.isoformat()
+                        article_date = dt.strftime('%Y-%m-%d')
+                        self.logger.info(f"Parsed article date from time element: {article_date}")
+                    except ValueError:
+                        current_time = datetime.now()
+                        published_at = int(current_time.timestamp())
+                        published_at_iso = current_time.isoformat()
+                        article_date = current_time.strftime('%Y-%m-%d')
+                        self.logger.warning(f"Could not parse date '{datetime_attr}' from time element, using current time")
+                else:
+                    current_time = datetime.now()
+                    published_at = int(current_time.timestamp())
+                    published_at_iso = current_time.isoformat()
+                    article_date = current_time.strftime('%Y-%m-%d')
+                    self.logger.warning("No datetime attribute found in time element, using current time")
+            else:
+                current_time = datetime.now()
+                published_at = int(current_time.timestamp())
+                published_at_iso = current_time.isoformat()
+                article_date = current_time.strftime('%Y-%m-%d')
+                self.logger.warning("No date found in article (neither meta tag nor time element), using current time")
 
         # Check if the article date is from today or yesterday
-        if article_date not in self.target_dates:
-            self.logger.debug(f"Skipping article from {article_date} (not today or yesterday): {url}")
-            return
+        # if article_date not in self.target_dates:
+        #     self.logger.debug(f"Skipping article from {article_date} (not today or yesterday): {url}")
+        #     return
 
         # Get article text
         article_text = []
