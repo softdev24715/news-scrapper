@@ -101,8 +101,6 @@ class IzvestiaSpider(scrapy.Spider):
                     # Limit to first 30 articles for testing
                     # if processed_count >= 30:
                     #     break
-                # else:
-                #     self.logger.debug(f"Skipping article from {entry_date} (not today or yesterday): {loc}")
         
         self.logger.info(f"Processed {processed_count} article URLs from target dates")
 

@@ -30,11 +30,13 @@ class KremlinSpider(scrapy.Spider):
         logging.info(f"Parsing main page: {response.url}")
         soup = BeautifulSoup(response.text, 'html.parser')
         
+
         # Generate dates for the last 7 days
         dates_to_try = []
         for i in range(7):
             date = datetime.now() - timedelta(days=i)
             dates_to_try.append(date.strftime('%Y-%m-%d'))
+
         
         logging.info(f"Looking for news from the last 7 days: {dates_to_try}")
         
