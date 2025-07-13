@@ -15,26 +15,33 @@ class RGSpider(SitemapSpider):
     
     def __init__(self, *args, **kwargs):
         super(RGSpider, self).__init__(*args, **kwargs)
-        # Target July 9th, 2025 specifically
-        target_date = datetime(2025, 7, 9)
-        self.target_dates = [
-            target_date.strftime('%Y-%m-%d')
-        ]
         
-        # Calculate July 9th start and end timestamps
-        target_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        target_end = target_date.replace(hour=23, minute=59, second=59)
+        # Generate date range from July 9th, 2025 to today
+        start_date = datetime.now() - timedelta(days=1)
+        end_date = datetime.now()
+        
+        # Generate list of all dates in the range
+        self.target_dates = []
+        current_date = start_date
+        while current_date <= end_date:
+            self.target_dates.append(current_date.strftime('%Y-%m-%d'))
+            current_date += timedelta(days=1)
+        
+        # Calculate start and end timestamps for the entire range
+        range_start = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        range_end = end_date.replace(hour=23, minute=59, second=59)
         
         # Convert to Unix timestamps
-        self.start_timestamp = int(target_start.timestamp())
-        self.end_timestamp = int(target_end.timestamp())
+        self.start_timestamp = int(range_start.timestamp())
+        self.end_timestamp = int(range_end.timestamp())
         
-        # Construct sitemap URL for July 9th
+        # Construct sitemap URL for the entire date range
         self.sitemap_urls = [f'https://rg.ru/sitemaps/index.xml?date_start={self.start_timestamp}&date_end={self.end_timestamp}']
         
-        logging.info(f"Initializing RG spider for date: {self.target_dates}")
+        logging.info(f"Initializing RG spider for date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+        logging.info(f"Target dates: {self.target_dates}")
         logging.info(f"Using sitemap URL: {self.sitemap_urls[0]}")
-        logging.info(f"Target date range: {target_start} to {target_end}")
+        logging.info(f"Target date range: {range_start} to {range_end}")
         logging.info(f"Current processed URLs count: {len(self.processed_urls)}")
 
     def sitemap_filter(self, entries):
