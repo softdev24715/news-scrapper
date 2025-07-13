@@ -9,6 +9,7 @@ import requests
 import xml.etree.ElementTree as ET
 import os
 import configparser
+import sys
 from dotenv import load_dotenv
 
 # Add the news_parser directory to Python path for imports
@@ -441,27 +442,45 @@ def load_urls_from_file(filename):
     return urls
 
 async def main():
-    # Get URLs from RSS feed instead of file
-    logger.info("Fetching regulation URLs from RSS feed...")
-    urls = get_regulation_urls_from_rss()
-    
-    if not urls:
-        logger.error("No URLs found from RSS feed. Exiting.")
-        return
-    
-    logger.info(f"Processing {len(urls)} URLs from RSS feed")
-    results = await process_urls(urls, concurrency=3)
-    
-    # Save results to JSON file as backup
-    # timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    # json_filename = f"regulation_structured_batch_{timestamp}.json"
-    # with open(json_filename, 'w', encoding='utf-8') as f:
-    #     json.dump(results, f, ensure_ascii=False, indent=2)
-    # logger.info(f"Batch structured data saved to: {json_filename}")
-    
-    # Close database connection
-    db.close()
-    logger.info("Database connection closed")
+    try:
+        # Get URLs from RSS feed instead of file
+        logger.info("Fetching regulation URLs from RSS feed...")
+        urls = get_regulation_urls_from_rss()
+        
+        if not urls:
+            logger.error("No URLs found from RSS feed. Exiting.")
+            return
+        
+        logger.info(f"Processing {len(urls)} URLs from RSS feed")
+        results = await process_urls(urls, concurrency=3)
+        
+        logger.info(f"Successfully processed {len(results)} regulations")
+        
+        # Save results to JSON file as backup
+        # timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        # json_filename = f"regulation_structured_batch_{timestamp}.json"
+        # with open(json_filename, 'w', encoding='utf-8') as f:
+        #     json.dump(results, f, ensure_ascii=False, indent=2)
+        # logger.info(f"Batch structured data saved to: {json_filename}")
+        
+        # Close database connection
+        db.close()
+        logger.info("Database connection closed")
+        logger.info("Regulation spider completed successfully")
+        
+    except Exception as e:
+        logger.error(f"Error in main function: {e}", exc_info=True)
+        # Close database connection even on error
+        try:
+            db.close()
+        except:
+            pass
+        raise  # Re-raise the exception to ensure non-zero exit code
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+        logger.info("Regulation spider finished with exit code 0")
+    except Exception as e:
+        logger.error(f"Regulation spider failed with error: {e}", exc_info=True)
+        sys.exit(1)  # Explicitly exit with error code

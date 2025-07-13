@@ -158,7 +158,7 @@ def run_spider_with_monitoring(spider_name):
             logger.info(f"Running Playwright-based regulation scraper")
             process = subprocess.Popen([
                 PYTHON_PATH, 'regulation.py'
-            ], cwd=SCRAPY_PROJECT_PATH)
+            ], cwd=SCRAPY_PROJECT_PATH, env={**os.environ, 'PYTHONUNBUFFERED': '1'})
         else:
             # Start regular Scrapy spider process
             process = subprocess.Popen([
@@ -167,7 +167,9 @@ def run_spider_with_monitoring(spider_name):
         
         # Wait for completion with timeout
         try:
-            process.wait(timeout=SPIDER_TIMEOUT)
+            # Longer timeout for regulation spider due to async operations
+            timeout = SPIDER_TIMEOUT * 2 if spider_name == 'regulation' else SPIDER_TIMEOUT
+            process.wait(timeout=timeout)
             now = datetime.utcnow()
             
             if process.returncode == 0:
@@ -178,7 +180,8 @@ def run_spider_with_monitoring(spider_name):
                 logger.error(f"Spider {spider_name} failed with return code {process.returncode}.")
                 
         except subprocess.TimeoutExpired:
-            logger.error(f"Spider {spider_name} timed out after {SPIDER_TIMEOUT} seconds")
+            timeout_seconds = SPIDER_TIMEOUT * 2 if spider_name == 'regulation' else SPIDER_TIMEOUT
+            logger.error(f"Spider {spider_name} timed out after {timeout_seconds} seconds")
             process.terminate()
             update_spider_running_status(spider_name, 'error', datetime.utcnow())
             

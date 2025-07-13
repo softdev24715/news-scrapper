@@ -211,7 +211,8 @@ def run_spider_with_logging(spider_name):
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
-                universal_newlines=True
+                universal_newlines=True,
+                env={**os.environ, 'PYTHONUNBUFFERED': '1'}  # Ensure output is not buffered
             )
         else:
             # Run the regular Scrapy spider
@@ -227,7 +228,9 @@ def run_spider_with_logging(spider_name):
         
         # Wait for completion with timeout (non-blocking)
         try:
-            stdout, stderr = process.communicate(timeout=3600)  # 1 hour timeout
+            # Longer timeout for regulation spider due to async operations
+            timeout = 7200 if spider_name == 'regulation' else 3600  # 2 hours for regulation, 1 hour for others
+            stdout, stderr = process.communicate(timeout=timeout)
             
             # Log any output
             if stdout:
@@ -246,7 +249,8 @@ def run_spider_with_logging(spider_name):
                 return False
                 
         except subprocess.TimeoutExpired:
-            spider_logger.error(f"Spider {spider_name} timed out after 1 hour")
+            timeout_hours = 2 if spider_name == 'regulation' else 1
+            spider_logger.error(f"Spider {spider_name} timed out after {timeout_hours} hour(s)")
             process.terminate()
             return False
             
