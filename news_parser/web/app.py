@@ -97,6 +97,26 @@ except Exception as e:
 # For spider status management
 engine = create_engine(db_url)
 
+# Reset all spider statuses to 'scheduled' and running_status to 'idle' on startup
+try:
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            UPDATE spider_status 
+            SET status = 'scheduled', 
+                running_status = 'idle', 
+                last_update = NOW()
+        """))
+        conn.commit()
+        
+        # Get count of updated spiders
+        count_result = conn.execute(text("SELECT COUNT(*) FROM spider_status"))
+        spider_count = count_result.scalar()
+        print(f"✅ Reset {spider_count} spiders to status='scheduled' and running_status='idle' on startup")
+        
+except Exception as e:
+    logger.error(f"Error resetting spider statuses on startup: {str(e)}")
+    print(f"Warning: Could not reset spider statuses: {str(e)}")
+
 # Mapping of spider names to site domains
 SPIDER_SITE_MAP = {
     # News spiders
