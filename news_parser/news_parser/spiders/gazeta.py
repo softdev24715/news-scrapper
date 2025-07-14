@@ -29,12 +29,14 @@ class GazetaSpider(scrapy.Spider):
 
     def __init__(self, *args, **kwargs):
         super(GazetaSpider, self).__init__(*args, **kwargs)
-        # Target July 9th, 2025 specifically
-        target_date = datetime(2025, 7, 9)
+        # Target yesterday and today
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
         self.target_dates = [
-            target_date.strftime('%Y-%m-%d')
+            today.strftime('%Y-%m-%d'),
+            yesterday.strftime('%Y-%m-%d')
         ]
-        logging.info(f"Initializing Gazeta spider for date: {self.target_dates}")
+        logging.info(f"Initializing Gazeta spider for dates: {self.target_dates}")
 
     def parse(self, response):
         logging.info(f"Parsing sitemap: {response.url}")
