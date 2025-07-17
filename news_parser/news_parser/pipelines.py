@@ -10,7 +10,7 @@ import json
 from datetime import datetime
 import os
 import logging
-from .models import Article, LegalDocument, init_db
+from .models import Article, LegalDocument, CNTDDocument, init_db
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy import create_engine
 from sqlalchemy.sql import text
@@ -30,6 +30,23 @@ class NewsParserPipeline:
         # Convert item to dict if it isn't already
         item_dict = dict(item)
         
+        # Handle CNTD spider - it yields raw JSON objects without metadata/lawMetadata
+        if spider.name == 'cntd':
+            # For CNTD, use document ID as unique key
+            unique_key = f"cntd:{item_dict.get('id', 'unknown')}"
+            
+            # Check if we've already processed this document ID
+            if unique_key in self.processed_urls:
+                logging.warning(f"Duplicate document ID found: {unique_key}")
+                return item
+                
+            # Add to processed set and items list
+            self.processed_urls.add(unique_key)
+            self.items.append(item_dict)
+            logging.info(f"Processing CNTD document: {unique_key} (Total items: {len(self.items)})")
+            return item
+        
+        # Handle other spiders with metadata/lawMetadata structure
         # Create unique key based on source + url (not the generated UUID)
         if 'lawMetadata' in item_dict:
             # Legal document
@@ -123,8 +140,11 @@ class PostgreSQLPipeline:
             # Convert item to dict
             item_dict = dict(item)
             
-            # Check if this is a legal document or news article
-            if 'lawMetadata' in item_dict:
+            # Check if this is a CNTD document, legal document, or news article
+            if 'doc_id' in item_dict:
+                # This is a CNTD document
+                success = self._save_cntd_document(item_dict)
+            elif 'lawMetadata' in item_dict:
                 # This is a legal document
                 success = self._save_legal_document(item_dict)
             else:
@@ -207,6 +227,44 @@ class PostgreSQLPipeline:
         except Exception as e:
             self.session.rollback()
             logging.error(f"❌ Error saving news article: {str(e)}")
+            return False
+
+    def _save_cntd_document(self, item_dict):
+        """Save a CNTD document to the docs_cntd table"""
+        try:
+            cntd_doc = CNTDDocument(
+                id=item_dict['id'],
+                doc_id=item_dict['doc_id'],
+                title=item_dict['title'],
+                requisites=item_dict['requisites'],
+                text=item_dict['text'],
+                url=item_dict['url'],
+                parsed_at=item_dict['parsed_at']
+            )
+            
+            self.session.add(cntd_doc)
+            self.session.commit()
+            
+            # Extract doc_id and URL for logging
+            doc_id = item_dict['doc_id']
+            url = item_dict['url']
+            logging.info(f"✅ Saved CNTD document: {doc_id} - {url[:50]}...")
+            return True
+            
+        except IntegrityError as e:
+            self.session.rollback()
+            self.duplicates_found += 1
+            doc_id = item_dict['doc_id']
+            url = item_dict['url']
+            logging.warning(f"🔄 Duplicate CNTD document: {doc_id} - {url[:50]}...")
+            return False
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            logging.error(f"❌ Database error saving CNTD document: {str(e)}")
+            return False
+        except Exception as e:
+            self.session.rollback()
+            logging.error(f"❌ Error saving CNTD document: {str(e)}")
             return False
 
     def _save_legal_document(self, item_dict):

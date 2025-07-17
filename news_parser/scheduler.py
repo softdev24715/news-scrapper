@@ -9,6 +9,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import queue
 
 # Load environment variables from .env file
 load_dotenv()
@@ -30,11 +31,12 @@ def load_config():
             'PYTHON_PATH': 'python'
         }
         config['Scheduler'] = {
-            'HOUR': '22',
-            'MINUTE': '0',
+            'START_HOUR': '6',
+            'START_MINUTE': '0',
             'LOG_LEVEL': 'INFO',
-            'BATCH_SIZE': '5',
-            'BATCH_INTERVAL_HOURS': '4'
+            'BATCH_SIZE': '10',
+            'CYCLE_INTERVAL_HOURS': '4',
+            'CYCLE_COUNT': '0'
         }
         config['Spider'] = {
             'MAX_CONCURRENT': '5',
@@ -54,11 +56,12 @@ SCRAPY_PROJECT_PATH = os.getenv('SCRAPY_PROJECT_PATH', os.path.abspath(os.path.j
 PYTHON_PATH = os.getenv('PYTHON_PATH', config.get('Scrapy', 'PYTHON_PATH', fallback='python'))
 
 # Scheduler configuration
-SCHEDULE_HOUR = int(config.get('Scheduler', 'HOUR', fallback='22'))
-SCHEDULE_MINUTE = int(config.get('Scheduler', 'MINUTE', fallback='0'))
+START_HOUR = int(config.get('Scheduler', 'START_HOUR', fallback='6'))
+START_MINUTE = int(config.get('Scheduler', 'START_MINUTE', fallback='0'))
 LOG_LEVEL = config.get('Scheduler', 'LOG_LEVEL', fallback='INFO')
-BATCH_SIZE = int(config.get('Scheduler', 'BATCH_SIZE', fallback='5'))
-BATCH_INTERVAL_HOURS = int(config.get('Scheduler', 'BATCH_INTERVAL_HOURS', fallback='4'))
+BATCH_SIZE = int(config.get('Scheduler', 'BATCH_SIZE', fallback='10'))
+CYCLE_INTERVAL_HOURS = int(config.get('Scheduler', 'CYCLE_INTERVAL_HOURS', fallback='4'))
+CYCLE_COUNT = int(config.get('Scheduler', 'CYCLE_COUNT', fallback='0'))
 
 # Spider configuration
 MAX_CONCURRENT = int(config.get('Spider', 'MAX_CONCURRENT', fallback='5'))
@@ -100,6 +103,26 @@ def setup_logging():
 
 # Setup logging
 logger = setup_logging()
+
+# Global concurrency control
+spider_semaphore = threading.Semaphore(MAX_CONCURRENT)
+spider_queue = queue.Queue()
+
+def validate_config():
+    """Validate configuration settings"""
+    if MAX_CONCURRENT < 1:
+        logger.error(f"MAX_CONCURRENT must be at least 1, got {MAX_CONCURRENT}")
+        return False
+    
+    if BATCH_SIZE > MAX_CONCURRENT:
+        logger.warning(f"BATCH_SIZE ({BATCH_SIZE}) is larger than MAX_CONCURRENT ({MAX_CONCURRENT}). This may cause delays.")
+    
+    if CYCLE_INTERVAL_HOURS < 2:
+        logger.error(f"CYCLE_INTERVAL_HOURS must be at least 2, got {CYCLE_INTERVAL_HOURS}")
+        return False
+    
+    logger.info(f"Configuration validated: MAX_CONCURRENT={MAX_CONCURRENT}, BATCH_SIZE={BATCH_SIZE}, CYCLE_INTERVAL_HOURS={CYCLE_INTERVAL_HOURS}")
+    return True
 
 def get_all_spiders():
     """Get all available spiders from the database"""
@@ -158,7 +181,13 @@ def run_spider_with_monitoring(spider_name):
             logger.info(f"Running Playwright-based regulation scraper")
             process = subprocess.Popen([
                 PYTHON_PATH, 'regulation.py'
-            ], cwd=SCRAPY_PROJECT_PATH, env={**os.environ, 'PYTHONUNBUFFERED': '1'})
+            ], cwd=SCRAPY_PROJECT_PATH, 
+               stdout=subprocess.PIPE,
+               stderr=subprocess.PIPE,
+               text=True,
+               bufsize=1,
+               universal_newlines=True,
+               env={**os.environ, 'PYTHONUNBUFFERED': '1'})
         else:
             # Start regular Scrapy spider process
             process = subprocess.Popen([
@@ -169,8 +198,17 @@ def run_spider_with_monitoring(spider_name):
         try:
             # Longer timeout for regulation spider due to async operations
             timeout = SPIDER_TIMEOUT * 2 if spider_name == 'regulation' else SPIDER_TIMEOUT
-            process.wait(timeout=timeout)
+            stdout, stderr = process.communicate(timeout=timeout)
             now = datetime.utcnow()
+            
+            # Log any output for regulation spider
+            if spider_name == 'regulation':
+                if stdout:
+                    for line in stdout.splitlines():
+                        if line.strip():
+                            logger.info(f"[{spider_name}] {line.strip()}")
+                if stderr:
+                    logger.error(f"[{spider_name}] Error output: {stderr}")
             
             if process.returncode == 0:
                 update_spider_running_status(spider_name, 'idle', now)
@@ -190,13 +228,18 @@ def run_spider_with_monitoring(spider_name):
         update_spider_running_status(spider_name, 'error', datetime.utcnow())
 
 def run_spider_batch(spider_batch):
-    """Run a batch of spiders concurrently"""
+    """Run a batch of spiders with global concurrency control"""
     logger.info(f"Starting batch of {len(spider_batch)} spiders: {spider_batch}")
     
-    # Use ThreadPoolExecutor to limit concurrent execution
+    # Use ThreadPoolExecutor with global semaphore to limit concurrent execution
     with ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
         # Submit all spiders in the batch
-        future_to_spider = {executor.submit(run_spider_with_monitoring, spider): spider for spider in spider_batch}
+        future_to_spider = {}
+        for spider in spider_batch:
+            # Acquire semaphore before submitting spider
+            spider_semaphore.acquire()
+            future = executor.submit(run_spider_with_monitoring, spider)
+            future_to_spider[future] = spider
         
         # Wait for all spiders in the batch to complete
         for future in as_completed(future_to_spider):
@@ -205,6 +248,9 @@ def run_spider_batch(spider_batch):
                 future.result()  # This will raise any exception that occurred
             except Exception as e:
                 logger.error(f"Spider {spider} generated an exception: {e}")
+            finally:
+                # Release semaphore when spider completes
+                spider_semaphore.release()
     
     logger.info(f"Batch completed: {spider_batch}")
 
@@ -235,77 +281,78 @@ def run_daily_spider_cycle():
         
         # Wait between batches (except for the last batch)
         if i < len(spider_batches) - 1:
-            wait_time = BATCH_INTERVAL_HOURS * 3600  # Convert hours to seconds
-            logger.info(f"Waiting {BATCH_INTERVAL_HOURS} hours before next batch...")
+            wait_time = CYCLE_INTERVAL_HOURS * 3600  # Convert hours to seconds
+            logger.info(f"Waiting {CYCLE_INTERVAL_HOURS} hours before next batch...")
             time.sleep(wait_time)
     
     logger.info("Daily spider cycle completed")
 
-def schedule_daily_batches():
-    """Schedule spider batches throughout the day"""
-    logger.info("Setting up daily batch schedule")
+def schedule_staggered_groups():
+    """Schedule spider groups with staggered start times"""
+    logger.info(f"Setting up staggered schedule: start at {START_HOUR:02d}:{START_MINUTE:02d}, interval {CYCLE_INTERVAL_HOURS}h, count {CYCLE_COUNT if CYCLE_COUNT > 0 else 'unlimited'}")
     
     # Reset all spiders to scheduled status
     reset_all_spiders_to_scheduled()
     
-    # Define fixed groups of 5 spiders each
+    # Define fixed groups of 10 spiders each
     spider_groups = [
-        # Group 1: Major news sources (6:00 AM)
-        ['tass', 'rbc', 'vedomosti', 'pnp', 'lenta'],
+        # Group 1: Major news and business sources
+        ['tass', 'rbc', 'vedomosti', 'pnp', 'lenta', 'kommersant', 'gazeta', 'graininfo', 'forbes', 'interfax'],
         
-        # Group 2: Business and economics (12:00 PM)
-        ['kommersant', 'gazeta', 'graininfo', 'forbes', 'interfax'],
-        
-        # Group 3: Government and official sources (6:00 PM)
-        ['government', 'kremlin', 'regulation', 'rg', 'ria'],
-        
-        # Group 4: Legal documents and remaining sources (12:00 AM)
-        ['pravo', 'sozd', 'eaeu', 'izvestia', 'meduza']
+        # Group 2: Government, legal and remaining sources
+        ['government', 'kremlin', 'regulation', 'rg', 'ria', 'pravo', 'sozd', 'eaeu', 'izvestia', 'meduza']
     ]
     
-    # Define schedule times for each group (6-hour intervals)
-    schedule_times = [
-        (6, 0),   # 6:00 AM - Group 1
-        (12, 0),  # 12:00 PM - Group 2  
-        (18, 0),  # 6:00 PM - Group 3
-        (0, 0)    # 12:00 AM - Group 4
-    ]
+    logger.info(f"Created 2 fixed groups of 10 spiders each")
     
-    logger.info(f"Created 4 fixed groups of 5 spiders each")
+    # Schedule Group 1 at start time
+    logger.info(f"Scheduling Group 1 at {START_HOUR:02d}:{START_MINUTE:02d} every {CYCLE_INTERVAL_HOURS} hours")
+    scheduler.add_job(
+        run_spider_batch, 
+        'cron', 
+        hour=START_HOUR,
+        minute=START_MINUTE,
+        args=[spider_groups[0]],
+        id='group_1_staggered'
+    )
     
-    # Schedule each group
-    for i, (group, (hour, minute)) in enumerate(zip(spider_groups, schedule_times)):
-        logger.info(f"Scheduling Group {i+1} ({group}) at {hour:02d}:{minute:02d}")
-        
-        # Schedule the group
-        scheduler.add_job(
-            run_spider_batch, 
-            'cron', 
-            hour=hour, 
-            minute=minute,
-            args=[group],
-            id=f'group_{i+1}'
-        )
+    # Schedule Group 2 at start time + 2 hours
+    group2_hour = (START_HOUR + 2) % 24
+    logger.info(f"Scheduling Group 2 at {group2_hour:02d}:{START_MINUTE:02d} every {CYCLE_INTERVAL_HOURS} hours")
+    scheduler.add_job(
+        run_spider_batch, 
+        'cron', 
+        hour=group2_hour,
+        minute=START_MINUTE,
+        args=[spider_groups[1]],
+        id='group_2_staggered'
+    )
 
 if __name__ == "__main__":
     scheduler = BlockingScheduler()
+    
+    # Validate configuration
+    if not validate_config():
+        logger.error("Configuration validation failed. Exiting.")
+        exit(1)
     
     # Get all spiders for logging
     all_spiders = get_all_spiders()
     logger.info(f"Scheduler started with {len(all_spiders)} enabled spiders")
     logger.info(f"Configuration: Max concurrent={MAX_CONCURRENT}, Timeout={SPIDER_TIMEOUT}s")
     
-    # Schedule daily batches
-    schedule_daily_batches()
+    # Schedule staggered groups
+    schedule_staggered_groups()
     
     # Schedule daily reset at 5:30 AM (before first group)
     scheduler.add_job(reset_all_spiders_to_scheduled, 'cron', hour=5, minute=30, id='daily_reset')
     
-    logger.info("Daily spider groups scheduled:")
-    logger.info("  Group 1 (Major news): 6:00 AM - tass, rbc, vedomosti, pnp, lenta")
-    logger.info("  Group 2 (Business): 12:00 PM - kommersant, gazeta, graininfo, forbes, interfax")
-    logger.info("  Group 3 (Government): 6:00 PM - government, kremlin, regulation, rg, ria")
-    logger.info("  Group 4 (Legal): 12:00 AM - pravo, sozd, eaeu, izvestia, meduza")
+    logger.info(f"Spider groups scheduled with staggered timing:")
+    logger.info("  Group 1 (News & Business): tass, rbc, vedomosti, pnp, lenta, kommersant, gazeta, graininfo, forbes, interfax")
+    logger.info("  Group 2 (Government & Legal): government, kremlin, regulation, rg, ria, pravo, sozd, eaeu, izvestia, meduza")
+    logger.info(f"Group 1 starts at {START_HOUR:02d}:{START_MINUTE:02d}, Group 2 starts 2 hours later")
+    logger.info(f"Cycle repeats every {CYCLE_INTERVAL_HOURS} hours")
+    logger.info(f"Global concurrency limit: {MAX_CONCURRENT} spiders maximum")
     logger.info("Daily reset scheduled at 5:30 AM")
     
     scheduler.start() 

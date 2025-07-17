@@ -81,6 +81,33 @@ class LegalDocument(Base):
             }
         }
 
+class CNTDDocument(Base):
+    __tablename__ = 'docs_cntd'
+
+    id = Column(String, primary_key=True)  # UUID from scraper
+    doc_id = Column(String, nullable=False)  # Original CNTD document ID
+    title = Column(Text, nullable=False)
+    requisites = Column(Text)
+    text = Column(Text, nullable=False)
+    url = Column(String, nullable=False)
+    parsed_at = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        """Convert to dictionary format"""
+        return {
+            'id': self.id,
+            'doc_id': self.doc_id,
+            'title': self.title,
+            'requisites': self.requisites,
+            'text': self.text,
+            'url': self.url,
+            'parsed_at': self.parsed_at,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
 def init_db(db_url):
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)
