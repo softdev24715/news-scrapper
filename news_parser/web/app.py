@@ -144,6 +144,7 @@ SPIDER_SITE_MAP = {
     'pravo': 'publication.pravo.gov.ru',
     'sozd': 'sozd.duma.gov.ru',
     'eaeu': 'docs.eaeunion.org',
+    'cntd': 'docs.cntd.ru',
 }
 
 # Helper to get spiders by site

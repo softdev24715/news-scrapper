@@ -300,7 +300,7 @@ def schedule_staggered_groups():
         ['tass', 'rbc', 'vedomosti', 'pnp', 'lenta', 'kommersant', 'gazeta', 'graininfo', 'forbes', 'interfax'],
         
         # Group 2: Government, legal and remaining sources
-        ['government', 'kremlin', 'regulation', 'rg', 'ria', 'pravo', 'sozd', 'eaeu', 'izvestia', 'meduza']
+        ['government', 'kremlin', 'regulation', 'rg', 'ria', 'pravo', 'sozd', 'eaeu', 'izvestia', 'meduza', 'cntd']
     ]
     
     logger.info(f"Created 2 fixed groups of 10 spiders each")
