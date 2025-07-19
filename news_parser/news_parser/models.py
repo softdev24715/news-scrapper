@@ -89,8 +89,9 @@ class CNTDDocument(Base):
     title = Column(Text, nullable=False)
     requisites = Column(Text)
     text = Column(Text, nullable=False)
-    url = Column(String, nullable=False)
+    url = Column(String(1000), nullable=False)
     parsed_at = Column(Integer, nullable=False)
+    published_at_iso = Column(DateTime)  # Publication date from registration data as DateTime
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -104,6 +105,7 @@ class CNTDDocument(Base):
             'text': self.text,
             'url': self.url,
             'parsed_at': self.parsed_at,
+            'published_at_iso': self.published_at_iso.isoformat() if self.published_at_iso is not None else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

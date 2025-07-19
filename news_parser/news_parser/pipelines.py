@@ -232,6 +232,14 @@ class PostgreSQLPipeline:
     def _save_cntd_document(self, item_dict):
         """Save a CNTD document to the docs_cntd table"""
         try:
+            # Debug logging to check field lengths
+            logging.info(f"CNTD document field lengths:")
+            logging.info(f"  doc_id: {len(str(item_dict.get('doc_id', '')))} chars")
+            logging.info(f"  title: {len(str(item_dict.get('title', '')))} chars")
+            logging.info(f"  requisites: {len(str(item_dict.get('requisites', '')))} chars")
+            logging.info(f"  url: {len(str(item_dict.get('url', '')))} chars")
+            logging.info(f"  published_at_iso: {item_dict.get('published_at_iso')}")
+            
             cntd_doc = CNTDDocument(
                 id=item_dict['id'],
                 doc_id=item_dict['doc_id'],
@@ -239,7 +247,8 @@ class PostgreSQLPipeline:
                 requisites=item_dict['requisites'],
                 text=item_dict['text'],
                 url=item_dict['url'],
-                parsed_at=item_dict['parsed_at']
+                parsed_at=item_dict['parsed_at'],
+                published_at_iso=item_dict.get('published_at_iso')
             )
             
             self.session.add(cntd_doc)
@@ -260,11 +269,21 @@ class PostgreSQLPipeline:
             return False
         except SQLAlchemyError as e:
             self.session.rollback()
-            logging.error(f"❌ Database error saving CNTD document: {str(e)}")
+            doc_id = item_dict['doc_id']
+            error_msg = f"Database error saving CNTD document: {str(e)}"
+            logging.error(f"❌ {error_msg}")
+            
+            # Log failed document for later retry
+            self.log_failed_cntd_document(doc_id, error_msg, item_dict)
             return False
         except Exception as e:
             self.session.rollback()
-            logging.error(f"❌ Error saving CNTD document: {str(e)}")
+            doc_id = item_dict['doc_id']
+            error_msg = f"Error saving CNTD document: {str(e)}"
+            logging.error(f"❌ {error_msg}")
+            
+            # Log failed document for later retry
+            self.log_failed_cntd_document(doc_id, error_msg, item_dict)
             return False
 
     def _save_legal_document(self, item_dict):
@@ -359,6 +378,35 @@ class PostgreSQLPipeline:
             finally:
                 self.session.close()
                 logging.info(f"🔌 Closed database connection for spider {spider.name}")
+
+    def log_failed_cntd_document(self, doc_id, error_message, item_dict):
+        """Log failed CNTD document with details for later retry"""
+        try:
+            # Create logs directory if it doesn't exist
+            logs_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'logs')
+            os.makedirs(logs_dir, exist_ok=True)
+            
+            # Create failed documents log file
+            failed_log_file = os.path.join(logs_dir, 'cntd_failed_documents.log')
+            
+            # Prepare error entry
+            error_entry = {
+                'doc_id': doc_id,
+                'error': error_message,
+                'timestamp': datetime.now().isoformat(),
+                'url': item_dict.get('url', ''),
+                'title': item_dict.get('title', ''),
+                'item_data': item_dict
+            }
+            
+            # Append to log file
+            with open(failed_log_file, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(error_entry, ensure_ascii=False) + '\n')
+                
+            logging.info(f"📝 Logged failed document {doc_id} to {failed_log_file}")
+            
+        except Exception as log_error:
+            logging.error(f"Failed to log failed document {doc_id}: {log_error}")
 
 class LegalDocumentsPipeline:
     """Pipeline specifically for legal documents"""

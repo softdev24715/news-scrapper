@@ -294,16 +294,16 @@ def schedule_staggered_groups():
     # Reset all spiders to scheduled status
     reset_all_spiders_to_scheduled()
     
-    # Define fixed groups of 10 spiders each
+    # Define two groups - Group 1: 10 spiders, Group 2: 11 spiders
     spider_groups = [
-        # Group 1: Major news and business sources
+        # Group 1: Major news and business sources (10 spiders)
         ['tass', 'rbc', 'vedomosti', 'pnp', 'lenta', 'kommersant', 'gazeta', 'graininfo', 'forbes', 'interfax'],
         
-        # Group 2: Government, legal and remaining sources
+        # Group 2: Government, legal and remaining sources (11 spiders)
         ['government', 'kremlin', 'regulation', 'rg', 'ria', 'pravo', 'sozd', 'eaeu', 'izvestia', 'meduza', 'cntd']
     ]
     
-    logger.info(f"Created 2 fixed groups of 10 spiders each")
+    logger.info(f"Created 2 groups: Group 1 ({len(spider_groups[0])} spiders), Group 2 ({len(spider_groups[1])} spiders)")
     
     # Schedule Group 1 at start time
     logger.info(f"Scheduling Group 1 at {START_HOUR:02d}:{START_MINUTE:02d} every {CYCLE_INTERVAL_HOURS} hours")
@@ -348,8 +348,8 @@ if __name__ == "__main__":
     scheduler.add_job(reset_all_spiders_to_scheduled, 'cron', hour=5, minute=30, id='daily_reset')
     
     logger.info(f"Spider groups scheduled with staggered timing:")
-    logger.info("  Group 1 (News & Business): tass, rbc, vedomosti, pnp, lenta, kommersant, gazeta, graininfo, forbes, interfax")
-    logger.info("  Group 2 (Government & Legal): government, kremlin, regulation, rg, ria, pravo, sozd, eaeu, izvestia, meduza")
+    logger.info("  Group 1 (News & Business): tass, rbc, vedomosti, pnp, lenta, kommersant, gazeta")
+    logger.info("  Group 2 (Government & Legal): government, kremlin, regulation, rg, ria, pravo, sozd, eaeu, izvestia, meduza, cntd")
     logger.info(f"Group 1 starts at {START_HOUR:02d}:{START_MINUTE:02d}, Group 2 starts 2 hours later")
     logger.info(f"Cycle repeats every {CYCLE_INTERVAL_HOURS} hours")
     logger.info(f"Global concurrency limit: {MAX_CONCURRENT} spiders maximum")

@@ -9,39 +9,120 @@ import uuid
 
 class CNTDSpider(scrapy.Spider):
     name = 'cntd'
-    allowed_domains = ['docs.cntd.ru']
+    allowed_domains = ['docs.cntd.ru', 'api.docs.rz']
     
     def __init__(self, *args, **kwargs):
         super(CNTDSpider, self).__init__(*args, **kwargs)
         self.base_search_url = 'https://docs.cntd.ru/api/search'
         self.category = kwargs.get('category', '3')  # Default category
-        self.current_page = 1
         
-        logging.info(f"Initializing CNTD spider with category={self.category}")
+        # Batch processing parameters
+        self.start_page = int(kwargs.get('start_page', 1))
+        self.end_page = int(kwargs.get('end_page', 3))
+        self.batch_size = int(kwargs.get('batch_size', 10))
+        
+        # Round-robin pages parameter
+        pages_param = kwargs.get('pages', '')
+        if pages_param:
+            # Parse specific pages from comma-separated string
+            self.specific_pages = [int(p.strip()) for p in pages_param.split(',') if p.strip()]
+            logging.info(f"Using specific pages: {self.specific_pages}")
+        else:
+            self.specific_pages = None
+        
+        # Setup error logging
+        self.setup_error_logging()
+        
+        logging.info(f"Initializing CNTD spider with category={self.category}, pages {self.start_page}-{self.end_page}")
+
+    def setup_error_logging(self):
+        """Setup error logging for failed documents"""
+        # Create logs directory if it doesn't exist
+        logs_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'logs')
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        # Create error log file with timestamp
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        self.error_log_file = os.path.join(logs_dir, f'cntd_failed_docs_{timestamp}.log')
+        
+        # Create error logger
+        self.error_logger = logging.getLogger(f'cntd_errors_{timestamp}')
+        self.error_logger.setLevel(logging.INFO)
+        
+        # Create file handler
+        file_handler = logging.FileHandler(self.error_log_file, encoding='utf-8')
+        file_handler.setLevel(logging.INFO)
+        
+        # Create formatter
+        formatter = logging.Formatter('%(asctime)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        
+        # Add handler to logger
+        self.error_logger.addHandler(file_handler)
+        
+        logging.info(f"Error logging setup: {self.error_log_file}")
+
+    def log_failed_document(self, doc_id, error_message, item_data=None):
+        """Log failed document with details for later retry"""
+        error_entry = {
+            'doc_id': doc_id,
+            'error': error_message,
+            'timestamp': datetime.now().isoformat(),
+            'batch': f"{self.start_page}-{self.end_page}",
+            'category': self.category
+        }
+        
+        if item_data:
+            error_entry['item_data'] = item_data
+        
+        # Log as JSON for easy parsing
+        self.error_logger.info(json.dumps(error_entry, ensure_ascii=False))
+        
+        # Also log to console for immediate feedback
+        logging.error(f"Failed document {doc_id}: {error_message}")
 
     def start_requests(self):
-        """Start with the first search page"""
-        search_url = f"{self.base_search_url}?order_by=registration_date:desc&category={self.category}&page={self.current_page}"
-        logging.info(f"Starting CNTD spider with search URL: {search_url}")
-        
-        yield scrapy.Request(
-            url=search_url,
-            callback=self.parse_search_results,
-            meta={'page': self.current_page}
-        )
+        """Start with the specified pages"""
+        if self.specific_pages:
+            # Use round-robin specific pages
+            logging.info(f"Starting CNTD spider with specific pages: {self.specific_pages}")
+            for page in self.specific_pages:
+                search_url = f"{self.base_search_url}?order_by=registration_date:desc&category={self.category}&page={page}"
+                logging.info(f"Queuing specific page {page}: {search_url}")
+                
+                yield scrapy.Request(
+                    url=search_url,
+                    callback=self.parse_search_results,
+                    meta={'page': page}
+                )
+        else:
+            # Use sequential page range (backward compatibility)
+            logging.info(f"Starting CNTD spider batch for pages {self.start_page}-{self.end_page}")
+            
+            # Generate requests for all pages in the batch
+            for page in range(self.start_page, self.end_page + 1):
+                search_url = f"{self.base_search_url}?order_by=registration_date:desc&category={self.category}&page={page}"
+                logging.info(f"Queuing page {page}: {search_url}")
+                
+                yield scrapy.Request(
+                    url=search_url,
+                    callback=self.parse_search_results,
+                    meta={'page': page}
+                )
 
     def parse_search_results(self, response):
         """Parse search results and request individual document pages"""
         try:
             data = json.loads(response.text)
-            logging.info(f"Parsing search results for page {response.meta['page']}")
+            current_page = response.meta['page']
+            logging.info(f"Parsing search results for page {current_page}")
             
             if 'data' not in data or not data['data']:
-                logging.info(f"No data found on page {response.meta['page']}")
+                logging.info(f"No data found on page {current_page} - batch complete")
                 return
             
             documents = data['data']
-            logging.info(f"Found {len(documents)} documents on page {response.meta['page']}")
+            logging.info(f"Found {len(documents)} documents on page {current_page}")
             
             # Process each document
             for doc in documents:
@@ -50,7 +131,7 @@ class CNTDSpider(scrapy.Spider):
                 
                 # Log the first document with converted text
                 if doc == documents[0]:
-                    logging.info(f"Sample document - ID: {converted_doc.get('id')}")
+                    logging.info(f"Sample document on page {current_page} - ID: {converted_doc.get('id')}")
                     if 'names' in converted_doc and converted_doc['names']:
                         logging.info(f"Converted names: {converted_doc['names']}")
                 
@@ -65,23 +146,11 @@ class CNTDSpider(scrapy.Spider):
                         callback=self.parse_document,
                         meta={'search_data': converted_doc}
                     )
-            
-            # Continue to next page (no max limit - continue until no data)
-            next_page = response.meta['page'] + 1
-            logging.info(f"Moving to next page: {next_page}")
-            
-            next_search_url = f"{self.base_search_url}?order_by=registration_date:desc&category={self.category}&page={next_page}"
-            
-            yield scrapy.Request(
-                url=next_search_url,
-                callback=self.parse_search_results,
-                meta={'page': next_page}
-            )
                 
         except json.JSONDecodeError as e:
-            logging.error(f"Failed to parse JSON from search results: {e}")
+            logging.error(f"Failed to parse JSON from search results on page {response.meta['page']}: {e}")
         except Exception as e:
-            logging.error(f"Error parsing search results: {e}")
+            logging.error(f"Error parsing search results on page {response.meta['page']}: {e}")
 
     def parse_document(self, response):
         """Individual document page to extract full text"""
@@ -137,6 +206,19 @@ class CNTDSpider(scrapy.Spider):
         # Generate requisites from registration data
         requisites = self.generate_requisites(search_data)
         
+        # Extract published_at_iso from registration data
+        published_at_iso = None
+        if 'registrations' in search_data and search_data['registrations']:
+            reg = search_data['registrations'][0]
+            date_str = reg.get('date')
+            if date_str:
+                try:
+                    # Parse the date string to DateTime object
+                    published_at_iso = datetime.strptime(date_str, '%Y-%m-%d')
+                except ValueError:
+                    logging.warning(f"Could not parse date: {date_str}")
+                    published_at_iso = None
+        
         # Create the item with the exact structure you specified
         item = {
             'id': str(uuid.uuid4()),  # Generate unique UUID
@@ -146,6 +228,7 @@ class CNTDSpider(scrapy.Spider):
             'text': full_text,
             'url': url,
             'parsed_at': int(datetime.now().timestamp()),
+            'published_at_iso': published_at_iso,
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
         }
@@ -231,4 +314,4 @@ class CNTDSpider(scrapy.Spider):
             return data
 
     def closed(self, reason):
-        logging.info(f"CNTD spider closed. Reason: {reason}") 
+        logging.info(f"CNTD spider batch {self.start_page}-{self.end_page} closed. Reason: {reason}") 
