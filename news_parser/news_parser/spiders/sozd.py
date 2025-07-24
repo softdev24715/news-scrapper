@@ -275,6 +275,87 @@ class SozdSpider(scrapy.Spider):
 
         return discussion_period
 
+    def extract_stage_from_progress(self, soup):
+        """Extract current stage from bill progress visualization"""
+        stage = None
+        
+        try:
+            # Find the bill_progress_wrap div
+            progress_wrap = soup.find('div', class_='bill_progress_wrap')
+            if not progress_wrap:
+                logging.warning("bill_progress_wrap div not found")
+                return stage
+            
+            # Find bill_gorizontal_progress inside it
+            horizontal_progress = progress_wrap.find('div', class_='bill_gorizontal_progress')
+            if not horizontal_progress:
+                logging.warning("bill_gorizontal_progress div not found")
+                return stage
+            
+            # Find bgp_middle div
+            bgp_middle = horizontal_progress.find('div', class_='bgp_middle')
+            if not bgp_middle:
+                logging.warning("bgp_middle div not found")
+                return stage
+            
+            # Look for active stage divs (with 'green' class)
+            active_stages = []
+            stage_descriptions = []
+            
+            for div in bgp_middle.find_all('div', class_=re.compile(r'btm\d+')):
+                classes = div.get('class', [])
+                if 'green' in classes:
+                    # Extract stage number from class name (e.g., 'btm9' -> '9')
+                    stage_match = re.search(r'btm(\d+)', ' '.join(classes))
+                    if stage_match:
+                        stage_num = stage_match.group(1)
+                        active_stages.append(stage_num)
+                        
+                        # Get the stage description from data-original-title attribute
+                        anchor = div.find('a', attrs={'data-original-title': True})
+                        if anchor:
+                            stage_desc = anchor.get('data-original-title')
+                            if stage_desc:
+                                stage_descriptions.append((stage_num, stage_desc))
+                                logging.info(f"Found stage {stage_num}: {stage_desc}")
+            
+            # Get the highest stage number (most recent/current stage)
+            if active_stages:
+                current_stage_num = max(active_stages, key=int)
+                
+                # Try to get the description for the current stage
+                current_stage_desc = None
+                for stage_num, desc in stage_descriptions:
+                    if stage_num == current_stage_num:
+                        current_stage_desc = desc
+                        break
+                
+                if current_stage_desc:
+                    stage = current_stage_desc
+                    logging.info(f"Extracted stage: {stage} (stage number: {current_stage_num})")
+                else:
+                    # Fallback to mapping if no description found
+                    stage_mapping = {
+                        '1': 'Внесение законопроекта в Государственную Думу',
+                        '2': 'Предварительное рассмотрение законопроекта',
+                        '3': 'Рассмотрение законопроекта в первом чтении',
+                        '4': 'Рассмотрение законопроекта во втором чтении',
+                        '5': 'Рассмотрение законопроекта в третьем чтении',
+                        '6': 'Прохождение закона в Совете Федерации',
+                        '8': 'Прохождение закона у Президента Российской Федерации',
+                        '9': 'Повторное рассмотрение закона, отклоненного Президентом',
+                        '11': 'Опубликование закона'
+                    }
+                    stage = stage_mapping.get(current_stage_num, f'Этап {current_stage_num}')
+                    logging.info(f"Extracted stage (fallback): {stage} (stage number: {current_stage_num})")
+            else:
+                logging.warning("No active stages found in progress visualization")
+                
+        except Exception as e:
+            logging.warning(f"Error extracting stage from progress: {e}")
+        
+        return stage
+
     def should_stop_pagination(self, doc_type, publication_date):
         """Check if we should stop pagination based on document date"""
         if not publication_date:
@@ -320,6 +401,15 @@ class SozdSpider(scrapy.Spider):
         # Extract publication date
         publication_date = self.extract_publication_date(soup, response.text)
 
+        # Extract stage from progress visualization (only for bills)
+        stage = None
+        if doc_type['doc_kind'] == 'bill':
+            stage = self.extract_stage_from_progress(soup)
+        else:
+            # For non-bill documents (draft_resolutions, draft_initiatives), set default stage
+            stage = "Внесение в Государственную Думу"
+            logging.info(f"Setting default stage for {doc_type['name']}: {stage}")
+
         # Process all documents regardless of date
         files = self.extract_files_info(soup)
         published_at = int(datetime.now().timestamp())
@@ -337,6 +427,7 @@ class SozdSpider(scrapy.Spider):
         logging.info(f"Extracted {doc_type['name']}: {title}")
         logging.info(f"Document ID: {doc_id}")
         logging.info(f"Publication date: {publication_date}")
+        logging.info(f"Stage: {stage}")
         logging.info(f"Content length: {len(content)}")
         yield {
             'id': doc_uuid,
@@ -351,7 +442,7 @@ class SozdSpider(scrapy.Spider):
                 'parsedAt': int(datetime.now().timestamp()),
                 'jurisdiction': 'RU',
                 'language': 'ru',
-                'stage': None,
+                'stage': stage,
                 'discussionPeriod': self.extract_discussion_period(soup),
                 'explanatoryNote': None,
                 'summaryReports': None,

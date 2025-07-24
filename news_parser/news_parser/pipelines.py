@@ -235,6 +235,7 @@ class PostgreSQLPipeline:
             # Debug logging to check field lengths
             logging.info(f"CNTD document field lengths:")
             logging.info(f"  doc_id: {len(str(item_dict.get('doc_id', '')))} chars")
+            logging.info(f"  page_number: {item_dict.get('page_number')}")
             logging.info(f"  title: {len(str(item_dict.get('title', '')))} chars")
             logging.info(f"  requisites: {len(str(item_dict.get('requisites', '')))} chars")
             logging.info(f"  url: {len(str(item_dict.get('url', '')))} chars")
@@ -243,6 +244,7 @@ class PostgreSQLPipeline:
             cntd_doc = CNTDDocument(
                 id=item_dict['id'],
                 doc_id=item_dict['doc_id'],
+                page_number=item_dict.get('page_number'),
                 title=item_dict['title'],
                 requisites=item_dict['requisites'],
                 text=item_dict['text'],

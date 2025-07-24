@@ -141,6 +141,10 @@ class CNTDSpider(scrapy.Spider):
                     doc_url = f"https://docs.cntd.ru/document/{doc_id}"
                     logging.info(f"Requesting document page: {doc_url}")
                     
+                    # Add page information to the search data
+                    converted_doc['page_id'] = current_page
+                    logging.info(f"Added page_id {current_page} to converted_doc for document {doc_id}")
+                    
                     yield scrapy.Request(
                         url=doc_url,
                         callback=self.parse_document,
@@ -219,10 +223,21 @@ class CNTDSpider(scrapy.Spider):
                     logging.warning(f"Could not parse date: {date_str}")
                     published_at_iso = None
         
+        # Get page information from meta
+        page_number = search_data.get('page_id', None)
+        doc_id = search_data.get('id')
+        
+        # Debug logging for page_number
+        logging.info(f"Creating item for doc_id: {doc_id}, page_number: {page_number}")
+        logging.info(f"search_data keys: {list(search_data.keys())}")
+        if 'page_id' in search_data:
+            logging.info(f"page_id value: {search_data['page_id']}")
+        
         # Create the item with the exact structure you specified
         item = {
             'id': str(uuid.uuid4()),  # Generate unique UUID
-            'doc_id': search_data.get('id'),  # Original CNTD document ID
+            'doc_id': str(doc_id) if doc_id else "",  # Original CNTD document ID
+            'page_number': page_number,  # Page number from API
             'title': title,
             'requisites': requisites,
             'text': full_text,
@@ -232,6 +247,9 @@ class CNTDSpider(scrapy.Spider):
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
         }
+        
+        # Debug logging for final item
+        logging.info(f"Final item page_number: {item['page_number']}")
         
         return item
 
@@ -243,7 +261,7 @@ class CNTDSpider(scrapy.Spider):
             
             # Extract components
             doctype_name = ""
-            if 'doctype' in reg and reg['doctype'] and 'name' in reg['doctype']:
+            if 'doctype' in reg and reg['doctype'] and 'name' in reg['doctype'] and reg['doctype']['name']:
                 doctype_name = reg['doctype']['name']
             
             date = reg.get('date')
@@ -272,6 +290,11 @@ class CNTDSpider(scrapy.Spider):
                     requisites += f" № {number}"
             elif doctype_name:
                 requisites = doctype_name
+                if number:
+                    requisites += f" № {number}"
+            elif date_str:
+                # If only date exists (no doctype), just show the date
+                requisites = f"от {date_str}"
                 if number:
                     requisites += f" № {number}"   
         return requisites

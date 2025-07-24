@@ -7,9 +7,75 @@ import uuid
 import json
 import requests
 import xml.etree.ElementTree as ET
+import os
+import configparser
+import sys
+from dotenv import load_dotenv
+from bs4 import BeautifulSoup
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Add the news_parser directory to Python path for imports
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), 'news_parser'))
+
+from news_parser.models import LegalDocument, init_db
+
+# Load environment variables and configuration
+load_dotenv()
+
+def load_config():
+    config = configparser.ConfigParser()
+    config_path = os.path.join(os.path.dirname(__file__), 'config.ini')
+    
+    if os.path.exists(config_path):
+        config.read(config_path)
+    else:
+        # Default configuration if config.ini doesn't exist
+        config['Database'] = {
+            'DATABASE_URL': 'postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres'
+        }
+    
+    return config
+
+# Load configuration
+config = load_config()
+DATABASE_URL = os.getenv('DATABASE_URL', config.get('Database', 'DATABASE_URL', fallback='postgresql://postgres:1e3Xdfsdf23@90.156.204.42:5432/postgres'))
+
+# Initialize database
+db = init_db(DATABASE_URL)
+
+def setup_logging():
+    """Setup logging configuration to use the centralized spider.log"""
+    # Create logs directory if it doesn't exist
+    log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Create logger
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    
+    # Clear any existing handlers
+    logger.handlers.clear()
+    
+    # Create formatter
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    
+    # File handler - save all logs to spider.log
+    log_file = os.path.join(log_dir, 'spider.log')
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
+    # Console handler - for immediate feedback
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    return logger
+
+# Setup logging
+logger = setup_logging()
 
 def parse_date(date_str):
     if not date_str:
@@ -60,16 +126,32 @@ async def extract_structured_data(page, npa_id: str):
     logger.info(f"Fetching URL: {url}")
 
     try:
-        await page.goto(url, wait_until='domcontentloaded', timeout=120000)
+        await page.goto(url, wait_until='networkidle', timeout=180000)  # Changed to networkidle for full page load
         try:
-            await page.wait_for_selector('text=Этапы проекта', timeout=30000)
+            await page.wait_for_selector('text=Этапы проекта', timeout=60000)  # Increased from 30000 to 60000
             logger.info("Found 'Этапы проекта' content")
         except Exception:
             logger.warning("Could not find 'Этапы проекта', proceeding anyway...")
 
-        await page.wait_for_timeout(1000)
-        title = await page.title()
-        logger.info(f"Page title: {title}")
+        # Wait for page to be fully loaded and stable
+        await page.wait_for_load_state('networkidle', timeout=30000)
+        await page.wait_for_timeout(3000)  # Increased wait time for stability
+        
+        # Get the actual regulation title from the page content
+        try:
+            title_element = await page.query_selector('.public_view_npa_title_text')
+            if title_element:
+                title = await title_element.inner_text()
+                title = title.strip()
+                logger.info(f"Regulation title: {title}")
+            else:
+                # Fallback to page title if element not found
+                title = await page.title()
+                logger.warning(f"Title element not found, using page title: {title}")
+        except Exception as e:
+            logger.warning(f"Error extracting title: {e}")
+            title = await page.title()
+            logger.info(f"Using page title as fallback: {title}")
 
         discussion_start = None
         discussion_end = None
@@ -142,7 +224,16 @@ async def extract_structured_data(page, npa_id: str):
             for modal_button in modal_triggers:
                 try:
                     await modal_button.click()
-                    await page.wait_for_selector('.k-window-content', timeout=15000)
+                    
+                    # Wait for modal to appear and be fully loaded
+                    await page.wait_for_selector('.k-window-content', timeout=45000)  # Increased from 15000 to 45000
+                    
+                    # Wait for modal content to be fully loaded
+                    await page.wait_for_load_state('networkidle', timeout=30000)
+                    
+                    # Additional wait for modal animations to complete
+                    await page.wait_for_timeout(2000)
+                    
                     modal_html = await page.inner_html('.k-window-content')
                     
                     # More robust file pattern matching
@@ -169,7 +260,15 @@ async def extract_structured_data(page, npa_id: str):
                     close_btn = await page.query_selector('.k-window .closeBtn')
                     if close_btn:
                         await close_btn.click()
-                    await page.wait_for_timeout(500)
+                        # Wait for modal to close completely
+                        await page.wait_for_timeout(1500)  # Increased wait time for modal close
+                    else:
+                        # Try alternative close methods if close button not found
+                        try:
+                            await page.keyboard.press('Escape')
+                            await page.wait_for_timeout(1000)
+                        except Exception:
+                            logger.warning("Could not close modal with Escape key")
                     
                 except Exception as e:
                     logger.warning(f"Error processing modal: {e}")
@@ -177,6 +276,42 @@ async def extract_structured_data(page, npa_id: str):
                     
         except Exception as e:
             logger.warning(f"Error extracting modal data: {e}")
+
+        # Extract stage from HTML
+        stage = "принято"  # Default fallback
+        try:
+            # Get the page HTML to extract stage information
+            page_html = await page.content()
+            
+            # Use BeautifulSoup for more reliable HTML parsing
+            soup = BeautifulSoup(page_html, 'html.parser')
+            
+            # Find the history div
+            history_div = soup.find('div', class_='history')
+            if history_div and hasattr(history_div, 'select'):
+                # Find all timeline-current-stage-header elements
+                stage_headers = history_div.select('.timeline-current-stage-header')  # type: ignore
+                
+                if stage_headers:
+                    # Get the last (latest) stage header
+                    last_stage_header = stage_headers[-1]
+                    
+                    # Extract text content and clean it
+                    stage_text = last_stage_header.get_text(strip=True)
+                    stage_text = re.sub(r'^Stage:\s*', '', stage_text, flags=re.IGNORECASE).strip()
+                    
+                    if stage_text:
+                        stage = stage_text
+                        logger.info(f"Extracted stage: {stage}")
+                    else:
+                        logger.warning("Stage text is empty after cleaning")
+                else:
+                    logger.warning("No stage headers found in history content")
+            else:
+                logger.warning("History div not found in page content")
+                
+        except Exception as e:
+            logger.warning(f"Error extracting stage: {e}")
 
         doc_kind = "act"
         title_lower = title.lower()
@@ -197,7 +332,7 @@ async def extract_structured_data(page, npa_id: str):
 
         structured_data = {
             "id": str(uuid.uuid4()),
-            "text": title,
+            "text": "",
             "lawMetadata": {
                 "originalId": npa_id,
                 "docKind": doc_kind,
@@ -208,17 +343,52 @@ async def extract_structured_data(page, npa_id: str):
                 "parsedAt": int(datetime.now().timestamp()),
                 "jurisdiction": "RU",
                 "language": "ru",
-                "stage": "public_discussion",
-                "discussionPeriod": {
-                    "start": discussion_start,
-                    "end": discussion_end
-                } if discussion_start and discussion_end else None,
-                "explanatoryNote": explanatory_note,
+                "stage": stage,
+                "discussionPeriod": None,
+                "explanatoryNote": None,
                 "summaryReports": None,
-                "commentStats": comment_stats,
+                "commentStats": None,
                 "files": files if files else None
             }
         }
+        
+        # Save to database
+        try:
+            # Check if document already exists
+            existing_doc = db.query(LegalDocument).filter(LegalDocument.url == url).first()
+            if existing_doc:
+                logger.info(f"Document already exists in database: {npa_id}")
+                return structured_data
+            
+            # Create new legal document
+            legal_doc = LegalDocument(
+                id=structured_data["id"],
+                text=structured_data["text"],
+                original_id=structured_data["lawMetadata"]["originalId"],
+                doc_kind=structured_data["lawMetadata"]["docKind"],
+                title=structured_data["lawMetadata"]["title"],
+                source=structured_data["lawMetadata"]["source"],
+                url=structured_data["lawMetadata"]["url"],
+                published_at=structured_data["lawMetadata"]["publishedAt"],
+                parsed_at=structured_data["lawMetadata"]["parsedAt"],
+                jurisdiction=structured_data["lawMetadata"]["jurisdiction"],
+                language=structured_data["lawMetadata"]["language"],
+                stage=structured_data["lawMetadata"]["stage"],
+                discussion_period=structured_data["lawMetadata"]["discussionPeriod"],
+                explanatory_note=structured_data["lawMetadata"]["explanatoryNote"],
+                summary_reports=structured_data["lawMetadata"]["summaryReports"],
+                comment_stats=structured_data["lawMetadata"]["commentStats"],
+                files=structured_data["lawMetadata"]["files"]
+            )
+            
+            db.add(legal_doc)
+            db.commit()
+            logger.info(f"Saved document to database: {npa_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving to database: {e}")
+            db.rollback()
+        
         return structured_data
 
     except Exception as e:
@@ -309,22 +479,45 @@ def load_urls_from_file(filename):
     return urls
 
 async def main():
-    # Get URLs from RSS feed instead of file
-    logger.info("Fetching regulation URLs from RSS feed...")
-    urls = get_regulation_urls_from_rss()
-    
-    if not urls:
-        logger.error("No URLs found from RSS feed. Exiting.")
-        return
-    
-    logger.info(f"Processing {len(urls)} URLs from RSS feed")
-    results = await process_urls(urls, concurrency=3)
-    
-    timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    json_filename = f"regulation_structured_batch_{timestamp}.json"
-    with open(json_filename, 'w', encoding='utf-8') as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
-    logger.info(f"Batch structured data saved to: {json_filename}")
+    try:
+        # Get URLs from RSS feed instead of file
+        logger.info("Fetching regulation URLs from RSS feed...")
+        urls = get_regulation_urls_from_rss()
+        
+        if not urls:
+            logger.error("No URLs found from RSS feed. Exiting.")
+            return
+        
+        logger.info(f"Processing {len(urls)} URLs from RSS feed")
+        results = await process_urls(urls, concurrency=3)
+        
+        logger.info(f"Successfully processed {len(results)} regulations")
+        
+        # Save results to JSON file as backup
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        json_filename = f"regulation_structured_batch_{timestamp}.json"
+        with open(json_filename, 'w', encoding='utf-8') as f:
+            json.dump(results, f, ensure_ascii=False, indent=2)
+        logger.info(f"Batch structured data saved to: {json_filename}")
+        
+        # Close database connection
+        db.close()
+        logger.info("Database connection closed")
+        logger.info("Regulation spider completed successfully")
+        
+    except Exception as e:
+        logger.error(f"Error in main function: {e}", exc_info=True)
+        # Close database connection even on error
+        try:
+            db.close()
+        except:
+            pass
+        raise  # Re-raise the exception to ensure non-zero exit code
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+        logger.info("Regulation spider finished with exit code 0")
+    except Exception as e:
+        logger.error(f"Regulation spider failed with error: {e}", exc_info=True)
+        sys.exit(1)  # Explicitly exit with error code

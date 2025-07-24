@@ -82,10 +82,11 @@ class LegalDocument(Base):
         }
 
 class CNTDDocument(Base):
-    __tablename__ = 'docs_cntd'
+    __tablename__ = 'docs_cntd_copy'
 
     id = Column(String, primary_key=True)  # UUID from scraper
     doc_id = Column(String, nullable=False)  # Original CNTD document ID
+    page_number = Column(Integer)  # Page number from API where document was found
     title = Column(Text, nullable=False)
     requisites = Column(Text)
     text = Column(Text, nullable=False)
@@ -100,6 +101,7 @@ class CNTDDocument(Base):
         return {
             'id': self.id,
             'doc_id': self.doc_id,
+            'page_number': self.page_number,
             'title': self.title,
             'requisites': self.requisites,
             'text': self.text,

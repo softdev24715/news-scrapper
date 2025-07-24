@@ -202,7 +202,7 @@ class PravoSpider(scrapy.Spider):
                 'parsedAt': int(datetime.now().timestamp()),
                 'jurisdiction': 'RU',
                 'language': 'ru',
-                'stage': None,
+                'stage': 'опубликован',
                 'discussionPeriod': None,
                 'explanatoryNote': None,
                 'summaryReports': None,

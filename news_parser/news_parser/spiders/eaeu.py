@@ -296,7 +296,7 @@ class EaeuSpider(scrapy.Spider):
                 'parsedAt': int(datetime.now().timestamp()),
                 'jurisdiction': 'EAEU',
                 'language': 'ru',
-                'stage': None,
+                'stage': 'принято',
                 'discussionPeriod': discussion_period,
                 'explanatoryNote': explanatory_note,
                 'summaryReports': summary_reports,

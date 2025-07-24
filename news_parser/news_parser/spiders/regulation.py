@@ -11,6 +11,7 @@ import os
 import configparser
 import sys
 from dotenv import load_dotenv
+from bs4 import BeautifulSoup
 
 # Add the news_parser directory to Python path for imports
 import sys
@@ -276,6 +277,42 @@ async def extract_structured_data(page, npa_id: str):
         except Exception as e:
             logger.warning(f"Error extracting modal data: {e}")
 
+        # Extract stage from HTML
+        stage = "принято"  # Default fallback
+        try:
+            # Get the page HTML to extract stage information
+            page_html = await page.content()
+            
+            # Use BeautifulSoup for more reliable HTML parsing
+            soup = BeautifulSoup(page_html, 'html.parser')
+            
+            # Find the history div
+            history_div = soup.find('div', class_='history')
+            if history_div and hasattr(history_div, 'select'):
+                # Find all timeline-current-stage-header elements
+                stage_headers = history_div.select('.timeline-current-stage-header')  # type: ignore
+                
+                if stage_headers:
+                    # Get the last (latest) stage header
+                    last_stage_header = stage_headers[-1]
+                    
+                    # Extract text content and clean it
+                    stage_text = last_stage_header.get_text(strip=True)
+                    stage_text = re.sub(r'^Stage:\s*', '', stage_text, flags=re.IGNORECASE).strip()
+                    
+                    if stage_text:
+                        stage = stage_text
+                        logger.info(f"Extracted stage: {stage}")
+                    else:
+                        logger.warning("Stage text is empty after cleaning")
+                else:
+                    logger.warning("No stage headers found in history content")
+            else:
+                logger.warning("History div not found in page content")
+                
+        except Exception as e:
+            logger.warning(f"Error extracting stage: {e}")
+
         doc_kind = "act"
         title_lower = title.lower()
         if "приказ" in title_lower:
@@ -306,7 +343,7 @@ async def extract_structured_data(page, npa_id: str):
                 "parsedAt": int(datetime.now().timestamp()),
                 "jurisdiction": "RU",
                 "language": "ru",
-                "stage": "public_discussion",
+                "stage": stage,
                 "discussionPeriod": None,
                 "explanatoryNote": None,
                 "summaryReports": None,
@@ -457,11 +494,11 @@ async def main():
         logger.info(f"Successfully processed {len(results)} regulations")
         
         # Save results to JSON file as backup
-        # timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-        # json_filename = f"regulation_structured_batch_{timestamp}.json"
-        # with open(json_filename, 'w', encoding='utf-8') as f:
-        #     json.dump(results, f, ensure_ascii=False, indent=2)
-        # logger.info(f"Batch structured data saved to: {json_filename}")
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        json_filename = f"regulation_structured_batch_{timestamp}.json"
+        with open(json_filename, 'w', encoding='utf-8') as f:
+            json.dump(results, f, ensure_ascii=False, indent=2)
+        logger.info(f"Batch structured data saved to: {json_filename}")
         
         # Close database connection
         db.close()
