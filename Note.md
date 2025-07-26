@@ -127,3 +127,17 @@ sudo journalctl -u news-scraper -f
 
 https://docs.eaeunion.org/documents/?PAGEN_1=1
 ssh -i ssh_private.pem javid@34.89.132.229
+
+
+
+
+id
+title
+requisites (explained later)
+text (full text, additionally explained later)
+url
+category
+sub_category
+parsed_at (bigint timestamp)
+created_at (2025-07-12 21:09:46.004836)
+updated_at (2025-07-12 21:09:46.004836)

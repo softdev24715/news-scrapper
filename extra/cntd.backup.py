@@ -14,11 +14,7 @@ class CNTDSpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super(CNTDSpider, self).__init__(*args, **kwargs)
         self.base_search_url = 'https://docs.cntd.ru/api/search'
-        
-        # Thematic processing parameters
-        self.thematic_id = kwargs.get('thematic_id', None)  # Specific thematic ID
-        self.thematic_ids_file = kwargs.get('thematic_ids_file', None)  # File with thematic IDs
-        self.max_pages_per_thematic = int(kwargs.get('max_pages_per_thematic', 10))  # Max pages per thematic
+        self.category = kwargs.get('category', '3')  # Default category
         
         # Batch processing parameters
         self.start_page = int(kwargs.get('start_page', 1))
@@ -34,41 +30,10 @@ class CNTDSpider(scrapy.Spider):
         else:
             self.specific_pages = None
         
-        # Load thematic IDs
-        self.thematic_ids = self.load_thematic_ids()
-        
         # Setup error logging
         self.setup_error_logging()
         
-        logging.info(f"Initializing CNTD spider with {len(self.thematic_ids)} thematic IDs, max pages per thematic: {self.max_pages_per_thematic}")
-
-    def load_thematic_ids(self):
-        """Load thematic IDs from file or use specific ID"""
-        if self.thematic_id:
-            # Use specific thematic ID
-            thematic_ids = [int(self.thematic_id)]
-            logging.info(f"Using specific thematic ID: {self.thematic_id}")
-        elif self.thematic_ids_file:
-            # Load from specified file
-            try:
-                with open(self.thematic_ids_file, 'r') as f:
-                    thematic_ids = json.load(f)
-                logging.info(f"Loaded {len(thematic_ids)} thematic IDs from {self.thematic_ids_file}")
-            except Exception as e:
-                logging.error(f"Error loading thematic IDs from {self.thematic_ids_file}: {e}")
-                thematic_ids = []
-        else:
-            # Load from default file
-            default_file = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'extra', 'cntd_sub.json')
-            try:
-                with open(default_file, 'r') as f:
-                    thematic_ids = json.load(f)
-                logging.info(f"Loaded {len(thematic_ids)} thematic IDs from default file: {default_file}")
-            except Exception as e:
-                logging.error(f"Error loading thematic IDs from default file: {e}")
-                thematic_ids = []
-        
-        return thematic_ids
+        logging.info(f"Initializing CNTD spider with category={self.category}, pages {self.start_page}-{self.end_page}")
 
     def setup_error_logging(self):
         """Setup error logging for failed documents"""
@@ -117,53 +82,47 @@ class CNTDSpider(scrapy.Spider):
         logging.error(f"Failed document {doc_id}: {error_message}")
 
     def start_requests(self):
-        """Start with thematic-based requests"""
+        """Start with the specified pages"""
         if self.specific_pages:
-            # Use round-robin specific pages for all thematics
+            # Use round-robin specific pages
             logging.info(f"Starting CNTD spider with specific pages: {self.specific_pages}")
-            for thematic_id in self.thematic_ids:
-                for page in self.specific_pages:
-                    search_url = self.build_search_url(thematic_id, page)
-                    logging.info(f"Queuing thematic {thematic_id}, page {page}: {search_url}")
-                    
-                    yield scrapy.Request(
-                        url=search_url,
-                        callback=self.parse_search_results,
-                        meta={'page': page, 'thematic_id': thematic_id}
-                    )
-        else:
-            # Start with first page for each thematic, then handle pagination dynamically
-            logging.info(f"Starting CNTD spider for {len(self.thematic_ids)} thematics, starting from page {self.start_page}")
-            
-            for thematic_id in self.thematic_ids:
-                # Start with the first page, pagination will be handled in parse_search_results
-                search_url = self.build_search_url(thematic_id, self.start_page)
-                logging.info(f"Queuing thematic {thematic_id}, starting page {self.start_page}: {search_url}")
+            for page in self.specific_pages:
+                search_url = f"{self.base_search_url}?order_by=registration_date:desc&category={self.category}&page={page}"
+                logging.info(f"Queuing specific page {page}: {search_url}")
                 
                 yield scrapy.Request(
                     url=search_url,
                     callback=self.parse_search_results,
-                    meta={'page': self.start_page, 'thematic_id': thematic_id}
+                    meta={'page': page}
                 )
-
-    def build_search_url(self, thematic_id, page):
-        """Build the search URL with new API format"""
-        return f"{self.base_search_url}?category_join=and&order_by=registration_date:desc&category[]=1&category[]=3&thematic={thematic_id}&page={page}"
+        else:
+            # Use sequential page range (backward compatibility)
+            logging.info(f"Starting CNTD spider batch for pages {self.start_page}-{self.end_page}")
+            
+            # Generate requests for all pages in the batch
+            for page in range(self.start_page, self.end_page + 1):
+                search_url = f"{self.base_search_url}?order_by=registration_date:desc&category={self.category}&page={page}"
+                logging.info(f"Queuing page {page}: {search_url}")
+                
+                yield scrapy.Request(
+                    url=search_url,
+                    callback=self.parse_search_results,
+                    meta={'page': page}
+                )
 
     def parse_search_results(self, response):
         """Parse search results and request individual document pages"""
         try:
             data = json.loads(response.text)
             current_page = response.meta['page']
-            thematic_id = response.meta['thematic_id']
-            logging.info(f"Parsing search results for thematic {thematic_id}, page {current_page}")
+            logging.info(f"Parsing search results for page {current_page}")
             
             if 'data' not in data or not data['data']:
-                logging.info(f"No data found for thematic {thematic_id}, page {current_page} - thematic complete")
+                logging.info(f"No data found on page {current_page} - batch complete")
                 return
             
             documents = data['data']
-            logging.info(f"Found {len(documents)} documents for thematic {thematic_id}, page {current_page}")
+            logging.info(f"Found {len(documents)} documents on page {current_page}")
             
             # Process each document
             for doc in documents:
@@ -172,7 +131,7 @@ class CNTDSpider(scrapy.Spider):
                 
                 # Log the first document with converted text
                 if doc == documents[0]:
-                    logging.info(f"Sample document for thematic {thematic_id}, page {current_page} - ID: {converted_doc.get('id')}")
+                    logging.info(f"Sample document on page {current_page} - ID: {converted_doc.get('id')}")
                     if 'names' in converted_doc and converted_doc['names']:
                         logging.info(f"Converted names: {converted_doc['names']}")
                 
@@ -182,45 +141,20 @@ class CNTDSpider(scrapy.Spider):
                     doc_url = f"https://docs.cntd.ru/document/{doc_id}"
                     logging.info(f"Requesting document page: {doc_url}")
                     
-                    # Add page and thematic information to the search data
+                    # Add page information to the search data
                     converted_doc['page_id'] = current_page
-                    converted_doc['thematic_id'] = thematic_id
-                    logging.info(f"Added page_id {current_page} and thematic_id {thematic_id} to converted_doc for document {doc_id}")
+                    logging.info(f"Added page_id {current_page} to converted_doc for document {doc_id}")
                     
                     yield scrapy.Request(
                         url=doc_url,
                         callback=self.parse_document,
                         meta={'search_data': converted_doc}
                     )
-            
-            # Check if we should continue to next page for this thematic
-            if not self.specific_pages:  # Only auto-paginate if not using specific pages
-                next_page = current_page + 1
-                
-                # Check if we've reached the maximum pages limit for this thematic
-                if self.end_page and next_page > self.end_page:
-                    logging.info(f"Reached maximum page limit ({self.end_page}) for thematic {thematic_id}")
-                    return
-                
-                # Check if we've reached the max_pages_per_thematic limit
-                if self.max_pages_per_thematic and next_page > self.max_pages_per_thematic:
-                    logging.info(f"Reached max_pages_per_thematic limit ({self.max_pages_per_thematic}) for thematic {thematic_id}")
-                    return
-                
-                # Request next page for this thematic
-                next_search_url = self.build_search_url(thematic_id, next_page)
-                logging.info(f"Queuing next page for thematic {thematic_id}, page {next_page}: {next_search_url}")
-                
-                yield scrapy.Request(
-                    url=next_search_url,
-                    callback=self.parse_search_results,
-                    meta={'page': next_page, 'thematic_id': thematic_id}
-                )
                 
         except json.JSONDecodeError as e:
-            logging.error(f"Failed to parse JSON from search results for thematic {response.meta.get('thematic_id')}, page {response.meta['page']}: {e}")
+            logging.error(f"Failed to parse JSON from search results on page {response.meta['page']}: {e}")
         except Exception as e:
-            logging.error(f"Error parsing search results for thematic {response.meta.get('thematic_id')}, page {response.meta['page']}: {e}")
+            logging.error(f"Error parsing search results on page {response.meta['page']}: {e}")
 
     def parse_document(self, response):
         """Individual document page to extract full text"""
@@ -289,25 +223,21 @@ class CNTDSpider(scrapy.Spider):
                     logging.warning(f"Could not parse date: {date_str}")
                     published_at_iso = None
         
-        # Get page and thematic information from meta
+        # Get page information from meta
         page_number = search_data.get('page_id', None)
-        thematic_id = search_data.get('thematic_id', None)
         doc_id = search_data.get('id')
         
-        # Debug logging for page_number and thematic_id
-        logging.info(f"Creating item for doc_id: {doc_id}, page_number: {page_number}, thematic_id: {thematic_id}")
+        # Debug logging for page_number
+        logging.info(f"Creating item for doc_id: {doc_id}, page_number: {page_number}")
         logging.info(f"search_data keys: {list(search_data.keys())}")
         if 'page_id' in search_data:
             logging.info(f"page_id value: {search_data['page_id']}")
-        if 'thematic_id' in search_data:
-            logging.info(f"thematic_id value: {search_data['thematic_id']}")
         
         # Create the item with the exact structure you specified
         item = {
             'id': str(uuid.uuid4()),  # Generate unique UUID
             'doc_id': str(doc_id) if doc_id else "",  # Original CNTD document ID
             'page_number': page_number,  # Page number from API
-            'thematic_id': thematic_id,  # Thematic ID
             'title': title,
             'requisites': requisites,
             'text': full_text,

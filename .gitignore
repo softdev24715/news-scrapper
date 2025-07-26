@@ -17,3 +17,9 @@ env/
 
 # Logs
 *.log 
+__pycache__/
+*.pyc
+*.pyo
+venv/
+
+env/
