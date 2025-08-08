@@ -16,7 +16,7 @@ class SozdSpider(scrapy.Spider):
     }
 
     def start_requests(self):
-        """Start with all three document types to find all documents"""
+        """Start with all three document types to find all documents from specified date range"""
         # Track pagination info for each document type
         self.pagination_info = {
             'bills': (1, 1),
@@ -31,7 +31,31 @@ class SozdSpider(scrapy.Spider):
             'draft_initiatives': False
         }
         
-        logging.info("Looking for all SOZD documents (no date filtering)")
+        # Get date range from spider arguments or use default (1 month ago)
+        from datetime import datetime, timedelta
+        
+        # Check if specific dates are provided
+        start_date_str = getattr(self, 'start_date', None)
+        end_date_str = getattr(self, 'end_date', None)
+        days_back = getattr(self, 'days_back', 30)  # Default to 30 days
+        
+        if start_date_str and end_date_str:
+            # Parse specific dates
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                logging.info(f"Using specified date range: {start_date} to {end_date}")
+            except ValueError as e:
+                logging.error(f"Invalid date format. Use YYYY-MM-DD. Error: {e}")
+                # Fallback to default
+                end_date = datetime.now().date()
+                start_date = end_date - timedelta(days=days_back)
+                logging.info(f"Falling back to default range: {start_date} to {end_date}")
+        else:
+            # Use days_back parameter
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=days_back)
+            logging.info(f"Looking for SOZD documents from {days_back} days ago: {start_date} to {end_date}")
         
         # Start with all three document types
         document_types = [
@@ -59,7 +83,7 @@ class SozdSpider(scrapy.Spider):
             yield scrapy.Request(
                 url=doc_type['base_url'],
                 callback=self.parse_search_page,
-                meta={'doc_type': doc_type, 'page': 1}
+                meta={'doc_type': doc_type, 'page': 1, 'start_date': start_date, 'end_date': end_date}
             )
 
     def parse_search_page(self, response):
@@ -94,6 +118,10 @@ class SozdSpider(scrapy.Spider):
         
         # Sequential processing: process one document at a time
         if document_links:
+            # Get date range from meta
+            start_date = response.meta.get('start_date')
+            end_date = response.meta.get('end_date')
+            
             yield scrapy.Request(
                 url=document_links[0],
                 callback=self.parse_document_detail,
@@ -104,7 +132,9 @@ class SozdSpider(scrapy.Spider):
                     'document_index': 0,
                     'total_documents': len(document_links),
                     'remaining_links': document_links[1:],
-                    'processed_count': 0
+                    'processed_count': 0,
+                    'start_date': start_date,
+                    'end_date': end_date
                 }
             )
         else:
@@ -276,7 +306,7 @@ class SozdSpider(scrapy.Spider):
         return discussion_period
 
     def extract_stage_from_progress(self, soup):
-        """Extract current stage from bill progress visualization"""
+        """Extract current stage from bill progress visualization - IMPROVED LOGIC"""
         stage = None
         
         try:
@@ -302,6 +332,7 @@ class SozdSpider(scrapy.Spider):
             active_stages = []
             stage_descriptions = []
             
+            # Method 1: Look for divs with btm\d+ classes that have 'green' class
             for div in bgp_middle.find_all('div', class_=re.compile(r'btm\d+')):
                 classes = div.get('class', [])
                 if 'green' in classes:
@@ -316,6 +347,37 @@ class SozdSpider(scrapy.Spider):
                         if anchor:
                             stage_desc = anchor.get('data-original-title')
                             if stage_desc:
+                                stage_descriptions.append((stage_num, stage_desc))
+                                logging.info(f"Found stage {stage_num}: {stage_desc}")
+            
+            # Method 2: If no green stages found, look for any stages with data-original-title
+            if not active_stages:
+                logging.info("No green stages found, looking for any stages with descriptions")
+                for div in bgp_middle.find_all('div', class_=re.compile(r'btm\d+')):
+                    stage_match = re.search(r'btm(\d+)', ' '.join(div.get('class', [])))
+                    if stage_match:
+                        stage_num = stage_match.group(1)
+                        anchor = div.find('a', attrs={'data-original-title': True})
+                        if anchor:
+                            stage_desc = anchor.get('data-original-title')
+                            if stage_desc:
+                                active_stages.append(stage_num)
+                                stage_descriptions.append((stage_num, stage_desc))
+                                logging.info(f"Found stage {stage_num}: {stage_desc}")
+            
+            # Method 3: Look for any anchor with data-original-title in the progress area
+            if not active_stages:
+                logging.info("No stages found in divs, looking for any anchors with descriptions")
+                for anchor in bgp_middle.find_all('a', attrs={'data-original-title': True}):
+                    stage_desc = anchor.get('data-original-title')
+                    if stage_desc:
+                        # Try to find the parent div with btm class
+                        parent_div = anchor.find_parent('div', class_=re.compile(r'btm\d+'))
+                        if parent_div:
+                            stage_match = re.search(r'btm(\d+)', ' '.join(parent_div.get('class', [])))
+                            if stage_match:
+                                stage_num = stage_match.group(1)
+                                active_stages.append(stage_num)
                                 stage_descriptions.append((stage_num, stage_desc))
                                 logging.info(f"Found stage {stage_num}: {stage_desc}")
             
@@ -337,13 +399,13 @@ class SozdSpider(scrapy.Spider):
                     # Fallback to mapping if no description found
                     stage_mapping = {
                         '1': 'Внесение законопроекта в Государственную Думу',
-                        '2': 'Предварительное рассмотрение законопроекта',
+                        '2': 'Предварительное рассмотрение законопроекта, внесенного в Государственную Думу',
                         '3': 'Рассмотрение законопроекта в первом чтении',
                         '4': 'Рассмотрение законопроекта во втором чтении',
                         '5': 'Рассмотрение законопроекта в третьем чтении',
                         '6': 'Прохождение закона в Совете Федерации',
                         '8': 'Прохождение закона у Президента Российской Федерации',
-                        '9': 'Повторное рассмотрение закона, отклоненного Президентом',
+                        '9': 'Повторное рассмотрение закона, отклоненного Президентом Российской Федерации',
                         '11': 'Опубликование закона'
                     }
                     stage = stage_mapping.get(current_stage_num, f'Этап {current_stage_num}')
@@ -356,20 +418,104 @@ class SozdSpider(scrapy.Spider):
         
         return stage
 
-    def should_stop_pagination(self, doc_type, publication_date):
-        """Check if we should stop pagination based on document date"""
+    def extract_stage_fallback(self, soup):
+        """Fallback method to extract stage from other parts of the page"""
+        stage = None
+        
+        try:
+            # Method 1: Look for stage information in bill_data_wrap
+            bill_data_wrap = soup.find('div', class_='bill_data_wrap')
+            if bill_data_wrap:
+                # Look for status or stage information
+                status_elem = bill_data_wrap.find('span', id='current_oz_status')
+                if status_elem:
+                    status_text = status_elem.get_text(strip=True)
+                    if status_text:
+                        stage = status_text
+                        logging.info(f"Found stage from status element: {stage}")
+                        return stage
+                
+                # Look for any text that might indicate stage
+                bill_text = bill_data_wrap.get_text()
+                stage_patterns = [
+                    r'Статус[:\s]*([^,\n]+)',
+                    r'Этап[:\s]*([^,\n]+)',
+                    r'Состояние[:\s]*([^,\n]+)'
+                ]
+                
+                for pattern in stage_patterns:
+                    stage_match = re.search(pattern, bill_text)
+                    if stage_match:
+                        stage = stage_match.group(1).strip()
+                        logging.info(f"Found stage from pattern '{pattern}': {stage}")
+                        return stage
+            
+            # Method 2: Look for stage information in the entire page
+            page_text = soup.get_text()
+            stage_patterns = [
+                r'Статус[:\s]*([^,\n]+)',
+                r'Этап[:\s]*([^,\n]+)',
+                r'Состояние[:\s]*([^,\n]+)',
+                r'Текущий этап[:\s]*([^,\n]+)',
+                r'Стадия[:\s]*([^,\n]+)'
+            ]
+            
+            for pattern in stage_patterns:
+                stage_match = re.search(pattern, page_text)
+                if stage_match:
+                    stage = stage_match.group(1).strip()
+                    logging.info(f"Found stage from page text pattern '{pattern}': {stage}")
+                    return stage
+            
+            # Method 3: Look for specific stage keywords
+            stage_keywords = {
+                'внесен': 'Внесение законопроекта в Государственную Думу',
+                'первое чтение': 'Рассмотрение законопроекта в первом чтении',
+                'второе чтение': 'Рассмотрение законопроекта во втором чтении',
+                'третье чтение': 'Рассмотрение законопроекта в третьем чтении',
+                'совет федерации': 'Прохождение закона в Совете Федерации',
+                'президент': 'Прохождение закона у Президента Российской Федерации',
+                'опубликован': 'Опубликование закона',
+                'принят': 'Принятие закона'
+            }
+            
+            page_text_lower = page_text.lower()
+            for keyword, stage_desc in stage_keywords.items():
+                if keyword in page_text_lower:
+                    stage = stage_desc
+                    logging.info(f"Found stage from keyword '{keyword}': {stage}")
+                    return stage
+                    
+        except Exception as e:
+            logging.warning(f"Error in stage fallback extraction: {e}")
+        
+        return stage
+
+    def should_stop_pagination(self, doc_type, publication_date, start_date=None, end_date=None):
+        """Check if we should stop pagination based on document date and date range"""
         if not publication_date:
             return False
         
         try:
             # Parse the publication date (format: DD.MM.YYYY)
             date_obj = datetime.strptime(publication_date, '%d.%m.%Y')
-            yesterday = datetime.now().date() - timedelta(days=1)
+            doc_date = date_obj.date()
             
-            # If document is older than yesterday, stop pagination
-            if date_obj.date() < yesterday:
-                logging.info(f"Document from {date_obj.date()} is older than yesterday ({yesterday}), should stop pagination for {doc_type['name']}")
+            # If we have a date range, check against it
+            if start_date and end_date:
+                if doc_date < start_date:
+                    logging.info(f"Document from {doc_date} is older than start date ({start_date}), should stop pagination for {doc_type['name']}")
+                    return True
+                if doc_date > end_date:
+                    logging.info(f"Document from {doc_date} is newer than end date ({end_date}), should stop pagination for {doc_type['name']}")
+                    return True
+            
+            # Fallback: If document is older than 2 months ago, stop pagination
+            two_months_ago = datetime.now().date() - timedelta(days=60)
+            if doc_date < two_months_ago:
+                logging.info(f"Document from {doc_date} is older than 2 months ago ({two_months_ago}), should stop pagination for {doc_type['name']}")
                 return True
+                
         except Exception as e:
             logging.warning(f"Error checking document date: {e}")
         
@@ -398,13 +544,22 @@ class SozdSpider(scrapy.Spider):
         # Extract content/text (for other uses, not for 'text' field)
         content = self.extract_content(soup)
 
-        # Extract publication date
-        publication_date = self.extract_publication_date(soup, response.text)
+        # Extract publication date with improved logic
+        publication_date = self.extract_publication_date_improved(soup, response.text)
 
         # Extract stage from progress visualization (only for bills)
         stage = None
         if doc_type['doc_kind'] == 'bill':
             stage = self.extract_stage_from_progress(soup)
+            if not stage:
+                # Fallback for bills: try to extract stage from other sources
+                stage = self.extract_stage_fallback(soup)
+                if stage:
+                    logging.info(f"Extracted stage using fallback method: {stage}")
+                else:
+                    # Default stage for bills if no stage found
+                    stage = "Внесение законопроекта в Государственную Думу"
+                    logging.info(f"No stage found for bill, using default: {stage}")
         else:
             # For non-bill documents (draft_resolutions, draft_initiatives), set default stage
             stage = "Внесение в Государственную Думу"
@@ -412,14 +567,12 @@ class SozdSpider(scrapy.Spider):
 
         # Process all documents regardless of date
         files = self.extract_files_info(soup)
-        published_at = int(datetime.now().timestamp())
+        
+        # Improved published_at logic
+        published_at = self.calculate_published_at(publication_date, soup)
+        
         if publication_date:
-            try:
-                date_obj = datetime.strptime(publication_date, '%d.%m.%Y')
-                published_at = int(date_obj.timestamp())
-                logging.info(f"Processing {doc_type['name']} from {publication_date}: {title}")
-            except ValueError as e:
-                logging.warning(f"Failed to parse date {publication_date}: {e}")
+            logging.info(f"Processing {doc_type['name']} from {publication_date}: {title}")
         else:
             logging.info(f"No publication date found for {doc_type['name']}, processing anyway")
 
@@ -427,8 +580,12 @@ class SozdSpider(scrapy.Spider):
         logging.info(f"Extracted {doc_type['name']}: {title}")
         logging.info(f"Document ID: {doc_id}")
         logging.info(f"Publication date: {publication_date}")
+        logging.info(f"Published at timestamp: {published_at}")
         logging.info(f"Stage: {stage}")
         logging.info(f"Content length: {len(content)}")
+        
+        # Let the pipeline handle database operations (insert/update)
+        # The pipeline will check for duplicates and handle stage updates
         yield {
             'id': doc_uuid,
             'text': text,
@@ -452,19 +609,23 @@ class SozdSpider(scrapy.Spider):
         }
 
         # Check if we should stop pagination based on document date
+        # Get date range from meta
+        start_date = response.meta.get('start_date')
+        end_date = response.meta.get('end_date')
+        
         # Only stop if we've processed multiple documents and they're all old
-        if self.should_stop_pagination(doc_type, publication_date):
+        if self.should_stop_pagination(doc_type, publication_date, start_date, end_date):
             # Only stop if this is not the first document on the page
             if processed_count > 0:
                 self.stop_pagination[doc_type['name']] = True
-                logging.info(f"Found document older than yesterday after processing {processed_count + 1} documents, stopping pagination for {doc_type['name']}")
+                logging.info(f"Found document outside date range after processing {processed_count + 1} documents, stopping pagination for {doc_type['name']}")
                 # Don't continue to next document, stop processing this document type
                 return
             else:
-                logging.info(f"First document is old, but continuing to check other documents on this page")
+                logging.info(f"First document is outside date range, but continuing to check other documents on this page")
         
         # Continue to the next document on the page
-        yield from self.continue_to_next_document(doc_type, current_page, remaining_links, processed_count + 1, total_documents)
+        yield from self.continue_to_next_document(doc_type, current_page, remaining_links, processed_count + 1, total_documents, start_date, end_date)
 
     def extract_content(self, soup):
         """Extract main content from document page"""
@@ -564,22 +725,192 @@ class SozdSpider(scrapy.Spider):
         
         return content
 
-    def extract_publication_date(self, soup, page_text):
-        """Extract publication date from document page"""
-        # Look for date patterns in the text
+    def extract_publication_date_improved(self, soup, page_text):
+        """Extract publication date from document page with improved logic - PRIORITIZES INTRODUCTION/START DATES"""
+        # Method 1: Look for INTRODUCTION/START dates first (these are what we want for published_at)
+        introduction_selectors = [
+            'span[id*="introduction"]',
+            'span[id*="registration"]', 
+            'span[id*="внесен"]',
+            'span[id*="регистрация"]',
+            'td:contains("Дата внесения")',
+            'td:contains("Дата регистрации")',
+            'td:contains("Внесен")',
+            'td:contains("Регистрация")'
+        ]
+        
+        for selector in introduction_selectors:
+            try:
+                elements = soup.select(selector)
+                for elem in elements:
+                    text = elem.get_text(strip=True)
+                    date_match = re.search(r'(\d{2}\.\d{2}\.\d{4})', text)
+                    if date_match:
+                        logging.info(f"Found INTRODUCTION date using selector '{selector}': {date_match.group(1)}")
+                        return date_match.group(1)
+            except Exception as e:
+                logging.debug(f"Error with selector '{selector}': {e}")
+        
+        # Method 2: Look for introduction/start date patterns in the text (PRIORITY)
+        introduction_patterns = [
+            r'Внесен[:\s]*(\d{2}\.\d{2}\.\d{4})',
+            r'Дата внесения[:\s]*(\d{2}\.\d{2}\.\d{4})',
+            r'Регистрация[:\s]*(\d{2}\.\d{2}\.\d{4})',
+            r'Дата регистрации[:\s]*(\d{2}\.\d{2}\.\d{4})',
+            r'Начало[:\s]*(\d{2}\.\d{2}\.\d{4})',
+            r'Создан[:\s]*(\d{2}\.\d{2}\.\d{4})'
+        ]
+        
+        for pattern in introduction_patterns:
+            date_match = re.search(pattern, page_text)
+            if date_match:
+                logging.info(f"Found INTRODUCTION date using pattern '{pattern}': {date_match.group(1)}")
+                return date_match.group(1)
+        
+        # Method 3: Look in bill_data_wrap specifically for introduction dates
+        bill_data_wrap = soup.find('div', class_='bill_data_wrap')
+        if bill_data_wrap:
+            bill_text = bill_data_wrap.get_text()
+            for pattern in introduction_patterns:
+                date_match = re.search(pattern, bill_text)
+                if date_match:
+                    logging.info(f"Found INTRODUCTION date in bill_data_wrap: {date_match.group(1)}")
+                    return date_match.group(1)
+        
+        # Method 4: Look for ANY date elements (fallback)
+        date_selectors = [
+            'span[id*="date"]',
+            'span[id*="Date"]',
+            'div[class*="date"]',
+            'div[class*="Date"]',
+            'td:contains("Дата")',
+            'td:contains("Опубликован")'
+        ]
+        
+        for selector in date_selectors:
+            try:
+                elements = soup.select(selector)
+                for elem in elements:
+                    text = elem.get_text(strip=True)
+                    date_match = re.search(r'(\d{2}\.\d{2}\.\d{4})', text)
+                    if date_match:
+                        logging.info(f"Found date using selector '{selector}': {date_match.group(1)}")
+                        return date_match.group(1)
+            except Exception as e:
+                logging.debug(f"Error with selector '{selector}': {e}")
+        
+        # Method 5: Look for any date patterns in the text (fallback)
         date_patterns = [
-            r'(\d{2}\.\d{2}\.\d{4})',  # DD.MM.YYYY
             r'Дата[:\s]*(\d{2}\.\d{2}\.\d{4})',
             r'Опубликован[:\s]*(\d{2}\.\d{2}\.\d{4})',
-            r'Регистрация[:\s]*(\d{2}\.\d{2}\.\d{4})'
+            r'Принят[:\s]*(\d{2}\.\d{2}\.\d{4})',
+            r'(\d{2}\.\d{2}\.\d{4})'  # Generic DD.MM.YYYY pattern
         ]
         
         for pattern in date_patterns:
             date_match = re.search(pattern, page_text)
             if date_match:
+                logging.info(f"Found date using pattern '{pattern}': {date_match.group(1)}")
                 return date_match.group(1)
         
+        logging.warning("No publication date found")
         return None
+
+    def calculate_published_at(self, publication_date, soup):
+        """Calculate published_at timestamp using start date (introduction date) - IMPROVED LOGIC"""
+        if publication_date:
+            try:
+                # Parse the publication date (format: DD.MM.YYYY)
+                date_obj = datetime.strptime(publication_date, '%d.%m.%Y')
+                published_at = int(date_obj.timestamp())
+                logging.info(f"Calculated published_at from date: {published_at} from date: {publication_date}")
+                return published_at
+            except ValueError as e:
+                logging.warning(f"Failed to parse publication date '{publication_date}': {e}")
+        
+        # If no publication_date provided, look for introduction/start dates directly
+        try:
+            page_text = str(soup)
+            introduction_patterns = [
+                r'Внесен[:\s]*(\d{2}\.\d{2}\.\d{4})',
+                r'Дата внесения[:\s]*(\d{2}\.\d{2}\.\d{4})',
+                r'Регистрация[:\s]*(\d{2}\.\d{2}\.\d{4})',
+                r'Дата регистрации[:\s]*(\d{2}\.\d{2}\.\d{4})',
+                r'Начало[:\s]*(\d{2}\.\d{2}\.\d{4})',
+                r'Создан[:\s]*(\d{2}\.\d{2}\.\d{4})'
+            ]
+            
+            for pattern in introduction_patterns:
+                date_match = re.search(pattern, page_text)
+                if date_match:
+                    date_str = date_match.group(1)
+                    try:
+                        date_obj = datetime.strptime(date_str, '%d.%m.%Y')
+                        published_at = int(date_obj.timestamp())
+                        logging.info(f"Found introduction date: {published_at} from pattern '{pattern}': {date_str}")
+                        return published_at
+                    except ValueError:
+                        continue
+            
+            # Look in bill_data_wrap for introduction date
+            bill_data_wrap = soup.find('div', class_='bill_data_wrap')
+            if bill_data_wrap:
+                bill_text = bill_data_wrap.get_text()
+                for pattern in introduction_patterns:
+                    date_match = re.search(pattern, bill_text)
+                    if date_match:
+                        date_str = date_match.group(1)
+                        try:
+                            date_obj = datetime.strptime(date_str, '%d.%m.%Y')
+                            published_at = int(date_obj.timestamp())
+                            logging.info(f"Found introduction date in bill_data_wrap: {published_at} from: {date_str}")
+                            return published_at
+                        except ValueError:
+                            continue
+            
+            # Last resort: look for any date
+            general_date_patterns = [
+                r'(\d{2}\.\d{2}\.\d{4})',  # DD.MM.YYYY
+                r'(\d{4}-\d{2}-\d{2})',    # YYYY-MM-DD
+            ]
+            
+            for pattern in general_date_patterns:
+                date_match = re.search(pattern, page_text)
+                if date_match:
+                    date_str = date_match.group(1)
+                    try:
+                        if '.' in date_str:
+                            date_obj = datetime.strptime(date_str, '%d.%m.%Y')
+                        elif '-' in date_str:
+                            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                        else:
+                            continue
+                        
+                        published_at = int(date_obj.timestamp())
+                        logging.info(f"Fallback published_at from general date: {published_at} from: {date_str}")
+                        return published_at
+                    except ValueError:
+                        continue
+                        
+        except Exception as e:
+            logging.warning(f"Error in date calculation: {e}")
+        
+        # Last resort: use current timestamp
+        current_timestamp = int(datetime.now().timestamp())
+        logging.warning(f"Using current timestamp as published_at: {current_timestamp}")
+        return current_timestamp
+
+    def check_existing_document(self, url):
+        """Check if document already exists in database"""
+        try:
+            # Use the pipeline's database connection if available
+            # This will be handled by the PostgreSQLPipeline
+            # For now, return None to let the pipeline handle it
+            # The pipeline will check for duplicates and handle updates
+            return None
+        except Exception as e:
+            logging.error(f"Error checking existing document: {e}")
+            return None
 
     def extract_files_info(self, soup):
         """Extract all real downloadable files from the document page, filtering out navigation, anchor, RSS, and non-file links."""
@@ -704,7 +1035,7 @@ class SozdSpider(scrapy.Spider):
         else:
             return 'unknown'
 
-    def continue_to_next_document(self, doc_type, current_page, remaining_links, processed_count, total_documents):
+    def continue_to_next_document(self, doc_type, current_page, remaining_links, processed_count, total_documents, start_date=None, end_date=None):
         """Continue to the next document or page"""
         if remaining_links:
             next_link = remaining_links[0]
@@ -721,14 +1052,16 @@ class SozdSpider(scrapy.Spider):
                     'document_index': processed_count,
                     'total_documents': total_documents,
                     'remaining_links': next_remaining,
-                    'processed_count': processed_count
+                    'processed_count': processed_count,
+                    'start_date': start_date,
+                    'end_date': end_date
                 }
             )
         else:
             # No more documents on this page, continue to next page (construct URL directly)
-            yield from self.continue_to_next_page(doc_type, current_page)
+            yield from self.continue_to_next_page(doc_type, current_page, start_date, end_date)
 
-    def continue_to_next_page(self, doc_type, current_page):
+    def continue_to_next_page(self, doc_type, current_page, start_date=None, end_date=None):
         """Continue to the next page (construct URL directly)"""
         # Check if pagination is stopped for this document type
         if self.stop_pagination[doc_type['name']]:
@@ -744,7 +1077,12 @@ class SozdSpider(scrapy.Spider):
             yield Request(
                 url=page_url,
                 callback=self.parse_search_page,
-                meta={'doc_type': doc_type, 'page': next_page}
+                meta={
+                    'doc_type': doc_type, 
+                    'page': next_page,
+                    'start_date': start_date,
+                    'end_date': end_date
+                }
             )
         else:
             logging.info(f"No more pages for {doc_type['name']} (current: {current_page}, last: {pagination_info[1] if pagination_info else 'unknown'})")

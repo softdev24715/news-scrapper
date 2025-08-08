@@ -213,6 +213,13 @@ def run_spider_with_monitoring(spider_name):
             if process.returncode == 0:
                 update_spider_running_status(spider_name, 'idle', now)
                 logger.info(f"Spider {spider_name} finished successfully.")
+                
+                # Run stage update script after SOZD spider completes successfully
+                if spider_name == 'sozd':
+                    logger.info("SOZD spider completed, running stage update script...")
+                    run_sozd_stage_update()
+                else:
+                    logger.info(f"Spider {spider_name} completed successfully.")
             else:
                 update_spider_running_status(spider_name, 'error', now)
                 logger.error(f"Spider {spider_name} failed with return code {process.returncode}.")
@@ -226,6 +233,48 @@ def run_spider_with_monitoring(spider_name):
     except Exception as e:
         logger.error(f"Error running spider {spider_name}: {str(e)}")
         update_spider_running_status(spider_name, 'error', datetime.utcnow())
+
+def run_sozd_stage_update():
+    """Run the SOZD stage update script after SOZD spider completes"""
+    try:
+        logger.info("Starting SOZD stage update script...")
+        
+        # Run the stage update script
+        process = subprocess.Popen([
+            PYTHON_PATH, 'update_sozd_stages.py',
+            '--days-back', '30',
+            '--max-concurrent', '10'
+        ], cwd=SCRAPY_PROJECT_PATH,
+           stdout=subprocess.PIPE,
+           stderr=subprocess.PIPE,
+           text=True,
+           bufsize=1,
+           universal_newlines=True,
+           env={**os.environ, 'PYTHONUNBUFFERED': '1'})
+        
+        # Wait for completion with timeout
+        try:
+            stdout, stderr = process.communicate(timeout=1800)  # 30 minutes timeout
+            
+            # Log output
+            if stdout:
+                for line in stdout.splitlines():
+                    if line.strip():
+                        logger.info(f"[SOZD_STAGE_UPDATE] {line.strip()}")
+            if stderr:
+                logger.error(f"[SOZD_STAGE_UPDATE] Error output: {stderr}")
+            
+            if process.returncode == 0:
+                logger.info("SOZD stage update script completed successfully.")
+            else:
+                logger.error(f"SOZD stage update script failed with return code {process.returncode}.")
+                
+        except subprocess.TimeoutExpired:
+            logger.error("SOZD stage update script timed out after 30 minutes")
+            process.terminate()
+            
+    except Exception as e:
+        logger.error(f"Error running SOZD stage update script: {str(e)}")
 
 def run_spider_batch(spider_batch):
     """Run a batch of spiders with global concurrency control"""

@@ -292,41 +292,66 @@ class PostgreSQLPipeline:
         """Save a legal document to the legal_documents table - using flattened structure"""
         try:
             law_metadata = item_dict['lawMetadata']
-            
-            legal_doc = LegalDocument(
-                id=item_dict['id'],
-                text=item_dict['text'],
-                original_id=law_metadata.get('originalId'),
-                doc_kind=law_metadata.get('docKind'),
-                title=law_metadata.get('title'),
-                source=law_metadata.get('source', ''),
-                url=law_metadata.get('url', ''),
-                published_at=law_metadata.get('publishedAt'),
-                parsed_at=law_metadata.get('parsedAt'),
-                jurisdiction=law_metadata.get('jurisdiction'),
-                language=law_metadata.get('language'),
-                stage=law_metadata.get('stage'),
-                discussion_period=law_metadata.get('discussionPeriod'),
-                explanatory_note=law_metadata.get('explanatoryNote'),
-                summary_reports=law_metadata.get('summaryReports'),
-                comment_stats=law_metadata.get('commentStats'),
-                files=law_metadata.get('files')
-            )
-            
-            self.session.add(legal_doc)
-            self.session.commit()
-            
-            # Extract source and URL for logging
-            source = law_metadata.get('source', '')
             url = law_metadata.get('url', '')
-            logging.info(f"✅ Saved legal document: {source} - {url[:50]}...")
-            return True
+            source = law_metadata.get('source', '')
+            new_stage = law_metadata.get('stage')
+            
+            # Check if document already exists
+            existing_doc = self.session.query(LegalDocument).filter(
+                LegalDocument.url == url,
+                LegalDocument.source == source
+            ).first()
+            
+            if existing_doc:
+                # Update existing document if stage has changed
+                if existing_doc.stage != new_stage:
+                    old_stage = existing_doc.stage
+                    existing_doc.stage = new_stage
+                    existing_doc.parsed_at = law_metadata.get('parsedAt')
+                    existing_doc.updated_at = datetime.now()
+                    
+                    # Update other fields if they've changed
+                    if law_metadata.get('title') and existing_doc.title != law_metadata.get('title'):
+                        existing_doc.title = law_metadata.get('title')
+                    if law_metadata.get('files') and existing_doc.files != law_metadata.get('files'):
+                        existing_doc.files = law_metadata.get('files')
+                    
+                    self.session.commit()
+                    logging.info(f"🔄 Updated legal document stage: '{old_stage}' -> '{new_stage}' for {source} - {url[:50]}...")
+                    return True
+                else:
+                    logging.info(f"⏭️  No stage change for {source} - {url[:50]}...")
+                    return True
+            else:
+                # Insert new document
+                legal_doc = LegalDocument(
+                    id=item_dict['id'],
+                    text=item_dict['text'],
+                    original_id=law_metadata.get('originalId'),
+                    doc_kind=law_metadata.get('docKind'),
+                    title=law_metadata.get('title'),
+                    source=source,
+                    url=url,
+                    published_at=law_metadata.get('publishedAt'),
+                    parsed_at=law_metadata.get('parsedAt'),
+                    jurisdiction=law_metadata.get('jurisdiction'),
+                    language=law_metadata.get('language'),
+                    stage=new_stage,
+                    discussion_period=law_metadata.get('discussionPeriod'),
+                    explanatory_note=law_metadata.get('explanatoryNote'),
+                    summary_reports=law_metadata.get('summaryReports'),
+                    comment_stats=law_metadata.get('commentStats'),
+                    files=law_metadata.get('files')
+                )
+                
+                self.session.add(legal_doc)
+                self.session.commit()
+                logging.info(f"✅ Saved new legal document: {source} - {url[:50]}...")
+                return True
             
         except IntegrityError as e:
             self.session.rollback()
             self.duplicates_found += 1
-            source = law_metadata.get('source', '')
-            url = law_metadata.get('url', '')
             logging.warning(f"🔄 Duplicate legal document: {source} - {url[:50]}...")
             return False
         except SQLAlchemyError as e:
