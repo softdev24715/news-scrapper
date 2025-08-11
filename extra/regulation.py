@@ -12,6 +12,7 @@ import configparser
 import sys
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
+from sqlalchemy import text
 
 # Add the news_parser directory to Python path for imports
 import sys
@@ -77,6 +78,19 @@ def setup_logging():
 # Setup logging
 logger = setup_logging()
 
+def update_spider_running_status(name, running_status):
+    """Update operational status for a spider in the database"""
+    try:
+        db.execute(
+            text('UPDATE spider_status SET running_status=:running_status, last_update=:last_update WHERE name=:name'),
+            {'running_status': running_status, 'last_update': datetime.utcnow(), 'name': name}
+        )
+        db.commit()
+        logger.info(f"Updated spider {name} running_status to '{running_status}'")
+    except Exception as e:
+        logger.error(f"Error updating spider {name} running_status to '{running_status}': {e}")
+        db.rollback()
+
 def parse_date(date_str):
     if not date_str:
         return None
@@ -121,12 +135,58 @@ def get_file_extension(filename):
     
     return 'unknown'
 
+# Add robust navigation with retries
+async def goto_with_retries(page, url: str, max_attempts: int = 3) -> bool:
+    wait_strategies = ['networkidle', 'load', 'domcontentloaded']
+    last_error: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        wait_until = wait_strategies[min(attempt - 1, len(wait_strategies) - 1)]
+        try:
+            await page.goto(url, wait_until=wait_until, timeout=180000)
+            return True
+        except Exception as e:
+            last_error = e
+            error_msg = str(e)
+            # Handle specific navigation errors
+            if 'ERR_EMPTY_RESPONSE' in error_msg:
+                logger.warning(f"ERR_EMPTY_RESPONSE for {url} (attempt {attempt}/{max_attempts}) - server returned empty response")
+            elif 'ERR_CONNECTION_TIMED_OUT' in error_msg:
+                logger.warning(f"Connection timeout for {url} (attempt {attempt}/{max_attempts})")
+            elif 'ERR_CONNECTION_REFUSED' in error_msg:
+                logger.warning(f"Connection refused for {url} (attempt {attempt}/{max_attempts})")
+            else:
+                logger.warning(f"Navigation error for {url} (attempt {attempt}/{max_attempts}, wait_until={wait_until}): {e}")
+            
+            # Backoff before retrying
+            try:
+                await page.wait_for_timeout(1500 * attempt)
+            except Exception:
+                pass
+    
+    # If all attempts failed, log the specific error type
+    if last_error:
+        error_msg = str(last_error)
+        if 'ERR_EMPTY_RESPONSE' in error_msg:
+            logger.error(f"Failed to navigate to {url} after {max_attempts} attempts: Server consistently returns empty response")
+        elif 'ERR_CONNECTION_TIMED_OUT' in error_msg:
+            logger.error(f"Failed to navigate to {url} after {max_attempts} attempts: Connection timeout")
+        elif 'ERR_CONNECTION_REFUSED' in error_msg:
+            logger.error(f"Failed to navigate to {url} after {max_attempts} attempts: Connection refused")
+        else:
+            logger.error(f"Failed to navigate to {url} after {max_attempts} attempts: {last_error}")
+    
+    return False
+
 async def extract_structured_data(page, npa_id: str):
     url = f"https://regulation.gov.ru/Regulation/Npa/PublicView?npaID={npa_id}"
     logger.info(f"Fetching URL: {url}")
 
     try:
-        await page.goto(url, wait_until='networkidle', timeout=180000)  # Changed to networkidle for full page load
+        # Navigate with retries to reduce transient failures like ERR_EMPTY_RESPONSE
+        nav_ok = await goto_with_retries(page, url, max_attempts=3)
+        if not nav_ok:
+            logger.error(f"Navigation failed for npaID {npa_id} - cannot extract data")
+            return None
         try:
             await page.wait_for_selector('text=Этапы проекта', timeout=60000)  # Increased from 30000 to 60000
             logger.info("Found 'Этапы проекта' content")
@@ -152,6 +212,11 @@ async def extract_structured_data(page, npa_id: str):
             logger.warning(f"Error extracting title: {e}")
             title = await page.title()
             logger.info(f"Using page title as fallback: {title}")
+
+        # Check if we have a valid title - if not, the page might be empty or error
+        if not title or title.strip() == "":
+            logger.error(f"No valid title found for npaID {npa_id} - page appears to be empty or invalid")
+            return None
 
         discussion_start = None
         discussion_end = None
@@ -207,6 +272,7 @@ async def extract_structured_data(page, npa_id: str):
             ]
             
             modal_found = False
+            modal_triggers = []
             for selector in modal_selectors:
                 try:
                     modal_triggers = await page.query_selector_all(selector)
@@ -218,9 +284,8 @@ async def extract_structured_data(page, npa_id: str):
                     continue
             
             if not modal_found:
-                logger.warning("No modal triggers found with any selector")
-                return None
-                
+                logger.warning("No modal triggers found; continuing without modal data")
+            
             for modal_button in modal_triggers:
                 try:
                     await modal_button.click()
@@ -344,10 +409,10 @@ async def extract_structured_data(page, npa_id: str):
                 "jurisdiction": "RU",
                 "language": "ru",
                 "stage": stage,
-                "discussionPeriod": None,
-                "explanatoryNote": None,
-                "summaryReports": None,
-                "commentStats": None,
+                "discussionPeriod": ({"start": discussion_start, "end": discussion_end} if discussion_start or discussion_end else None),
+                "explanatoryNote": explanatory_note,
+                "summaryReports": (summary_reports if summary_reports else None),
+                "commentStats": (comment_stats if (comment_stats.get("total", 0) > 0) else None),
                 "files": files if files else None
             }
         }
@@ -357,45 +422,33 @@ async def extract_structured_data(page, npa_id: str):
             # Check if document already exists
             existing_doc = db.query(LegalDocument).filter(LegalDocument.url == url).first()
             if existing_doc:
-                # Update existing document with new stage information
-                existing_doc.stage = structured_data["lawMetadata"]["stage"]
-                existing_doc.parsed_at = structured_data["lawMetadata"]["parsedAt"]
-                # updated_at will be automatically updated by SQLAlchemy due to onupdate=datetime.utcnow
-                
-                # Also update other fields that might have changed
-                if structured_data["lawMetadata"]["title"]:
-                    existing_doc.title = structured_data["lawMetadata"]["title"]
-                if structured_data["lawMetadata"]["files"]:
-                    existing_doc.files = structured_data["lawMetadata"]["files"]
-                
-                db.commit()
-                logger.info(f"Updated existing document in database: {npa_id} with stage: {structured_data['lawMetadata']['stage']}")
+                logger.info(f"Document already exists in database: {npa_id}")
                 return structured_data
-            else:
-                # Create new legal document
-                legal_doc = LegalDocument(
-                    id=structured_data["id"],
-                    text=structured_data["text"],
-                    original_id=structured_data["lawMetadata"]["originalId"],
-                    doc_kind=structured_data["lawMetadata"]["docKind"],
-                    title=structured_data["lawMetadata"]["title"],
-                    source=structured_data["lawMetadata"]["source"],
-                    url=structured_data["lawMetadata"]["url"],
-                    published_at=structured_data["lawMetadata"]["publishedAt"],
-                    parsed_at=structured_data["lawMetadata"]["parsedAt"],
-                    jurisdiction=structured_data["lawMetadata"]["jurisdiction"],
-                    language=structured_data["lawMetadata"]["language"],
-                    stage=structured_data["lawMetadata"]["stage"],
-                    discussion_period=structured_data["lawMetadata"]["discussionPeriod"],
-                    explanatory_note=structured_data["lawMetadata"]["explanatoryNote"],
-                    summary_reports=structured_data["lawMetadata"]["summaryReports"],
-                    comment_stats=structured_data["lawMetadata"]["commentStats"],
-                    files=structured_data["lawMetadata"]["files"]
-                )
-                
-                db.add(legal_doc)
-                db.commit()
-                logger.info(f"Saved new document to database: {npa_id}")
+            
+            # Create new legal document
+            legal_doc = LegalDocument(
+                id=structured_data["id"],
+                text=structured_data["text"],
+                original_id=structured_data["lawMetadata"]["originalId"],
+                doc_kind=structured_data["lawMetadata"]["docKind"],
+                title=structured_data["lawMetadata"]["title"],
+                source=structured_data["lawMetadata"]["source"],
+                url=structured_data["lawMetadata"]["url"],
+                published_at=structured_data["lawMetadata"]["publishedAt"],
+                parsed_at=structured_data["lawMetadata"]["parsedAt"],
+                jurisdiction=structured_data["lawMetadata"]["jurisdiction"],
+                language=structured_data["lawMetadata"]["language"],
+                stage=structured_data["lawMetadata"]["stage"],
+                discussion_period=structured_data["lawMetadata"]["discussionPeriod"],
+                explanatory_note=structured_data["lawMetadata"]["explanatoryNote"],
+                summary_reports=structured_data["lawMetadata"]["summaryReports"],
+                comment_stats=structured_data["lawMetadata"]["commentStats"],
+                files=structured_data["lawMetadata"]["files"]
+            )
+            
+            db.add(legal_doc)
+            db.commit()
+            logger.info(f"Saved document to database: {npa_id}")
             
         except Exception as e:
             logger.error(f"Error saving to database: {e}")
@@ -420,7 +473,8 @@ async def process_urls(urls, concurrency=3):
                 'server': 'http://90.156.202.84:3128',
                 'username': 'googlecompute',
                 'password': 'xd23rXPEmq2+23'
-            }
+            },
+            ignore_https_errors=True
         )
 
         async def process_one(url):
@@ -437,9 +491,17 @@ async def process_urls(urls, concurrency=3):
                         results.append(data)
                         logger.info(f"Success: {npa_id}")
                     else:
-                        logger.warning(f"No data extracted for {npa_id}")
+                        logger.warning(f"No data extracted for {npa_id} - page may be empty, invalid, or inaccessible")
                 except Exception as e:
-                    logger.error(f"Error processing {npa_id}: {e}")
+                    error_msg = str(e)
+                    if 'ERR_EMPTY_RESPONSE' in error_msg:
+                        logger.error(f"ERR_EMPTY_RESPONSE for npaID {npa_id}: Server returned empty response")
+                    elif 'ERR_CONNECTION_TIMED_OUT' in error_msg:
+                        logger.error(f"Connection timeout for npaID {npa_id}")
+                    elif 'ERR_CONNECTION_REFUSED' in error_msg:
+                        logger.error(f"Connection refused for npaID {npa_id}")
+                    else:
+                        logger.error(f"Error processing {npa_id}: {e}")
                 finally:
                     await page.close()
 
@@ -487,23 +549,23 @@ def load_urls_from_file(filename):
         for line in f:
             line = line.strip()
             if line and 'npaID=' in line:
-                # Remove quotes if present
-                line = line.strip('"')
                 urls.append(line)
     return urls
 
 async def main():
     try:
-        # Get URLs from the url_reg.txt file
-        logger.info("Loading regulation URLs from url_reg.txt file...")
-        url_file_path = os.path.join(os.path.dirname(__file__), '..', 'extra', 'url_reg.txt')
-        urls = load_urls_from_file(url_file_path)
+        # Update spider status to running when starting
+        update_spider_running_status('regulation', 'running')
+        
+        # Get URLs from RSS feed instead of file
+        logger.info("Fetching regulation URLs from RSS feed...")
+        urls = get_regulation_urls_from_rss()
         
         if not urls:
-            logger.error("No URLs found in url_reg.txt file. Exiting.")
+            logger.error("No URLs found from RSS feed. Exiting.")
             return
         
-        logger.info(f"Processing {len(urls)} URLs from url_reg.txt file")
+        logger.info(f"Processing {len(urls)} URLs from RSS feed")
         results = await process_urls(urls, concurrency=3)
         
         logger.info(f"Successfully processed {len(results)} regulations")
@@ -514,6 +576,9 @@ async def main():
         with open(json_filename, 'w', encoding='utf-8') as f:
             json.dump(results, f, ensure_ascii=False, indent=2)
         logger.info(f"Batch structured data saved to: {json_filename}")
+        
+        # Update spider status to idle on successful completion
+        update_spider_running_status('regulation', 'idle')
         
         # Close database connection
         db.close()
