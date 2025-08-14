@@ -7,22 +7,15 @@ import logging
 import uuid
 import json
 import re
-import xml.etree.ElementTree as ET
+from urllib.parse import urljoin
 
 class GraininfoSpider(Spider):
     name = 'graininfo'
     allowed_domains = ['graininfo.ru']
-    start_urls = ['https://graininfo.ru/rss/']
+    start_urls = ['https://graininfo.ru/news/']
     
     # Class-level set to track processed URLs across all instances
     processed_urls = set()
-    
-    # Define namespaces
-    namespaces = {
-        'default': 'http://backend.userland.com/rss2',
-        'turbo': 'http://turbo.yandex.ru',
-        'yandex': 'http://news.yandex.ru'
-    }
     
     custom_settings = {
         'USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -45,7 +38,7 @@ class GraininfoSpider(Spider):
         },
         'COOKIES_DEBUG': True,  # Track cookie handling
         'CONCURRENT_REQUESTS': 1,  # Reduce request rate
-        'DOWNLOAD_DELAY': 5  # Add delay between requests
+        'DOWNLOAD_DELAY': 3  # Add delay between requests
     }
     
     def __init__(self, *args, **kwargs):
@@ -54,223 +47,185 @@ class GraininfoSpider(Spider):
         today = datetime.now()
         yesterday = today - timedelta(days=1)
         self.target_dates = [
-            today.strftime('%Y-%m-%d'),
-            yesterday.strftime('%Y-%m-%d')
+            today.strftime('%d.%m.%Y'),
+            yesterday.strftime('%d.%m.%Y')
         ]
         
         logging.info(f"Initializing Graininfo spider for dates: {self.target_dates}")
         logging.info(f"Current processed URLs count: {len(self.processed_urls)}")
 
     def parse(self, response):
-        """Parse the RSS feed and yield items."""
-        logging.debug(f"Parsing RSS feed: {response.url}")
+        """Parse the main news page and extract article data directly."""
+        logging.info(f"Parsing main news page: {response.url}")
         
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Find all news items on the page
+        # Based on the website structure, news items are in a list format
+        news_items = soup.find_all('li')
+        
+        for item in news_items:
+            # Look for date pattern in the item
+            date_text = item.get_text(strip=True)
+            
+            # Extract date using regex pattern (DD.MM.YYYY)
+            date_match = re.search(r'(\d{2}\.\d{2}\.\d{4})', date_text)
+            if not date_match:
+                continue
+                
+            article_date = date_match.group(1)
+            
+            # Only process today's and yesterday's articles
+            if article_date not in self.target_dates:
+                logging.debug(f"Skipping article from {article_date} (not today or yesterday)")
+                continue
+            
+            # Find the link to the article
+            link = item.find('a')
+            if not link or not link.get('href'):
+                continue
+                
+            article_url = urljoin(response.url, link['href'])
+            
+            # Check if already processed
+            if article_url in self.processed_urls:
+                logging.debug(f"Skipping already processed URL: {article_url}")
+                continue
+                
+            self.processed_urls.add(article_url)
+            
+            # Get article title
+            title = link.get_text(strip=True)
+            if not title:
+                logging.warning(f"No title found for URL: {article_url}")
+                continue
+            
+            # Try to get content from the listing page
+            # Look for content in the same list item
+            content = None
+            
+            # Try to find content in the item text (excluding the title and date)
+            item_text = item.get_text(strip=True)
+            # Remove the date and title from the text to get content
+            item_text = re.sub(r'\d{2}\.\d{2}\.\d{4}', '', item_text)
+            item_text = re.sub(re.escape(title), '', item_text)
+            item_text = item_text.strip()
+            
+            if item_text and len(item_text) > 50:
+                content = item_text
+                logging.debug("Found content in listing page item")
+            
+            # If no content found on listing page, we'll need to visit the article page
+            if not content:
+                logging.info(f"No content found on listing page, will visit article: {article_url}")
+                yield scrapy.Request(
+                    url=article_url,
+                    callback=self.parse_article,
+                    meta={
+                        'title': title,
+                        'article_date': article_date,
+                        'article_url': article_url
+                    },
+                    errback=self.handle_error
+                )
+            else:
+                # We have all the data we need from the listing page
+                logging.info(f"Found article from {article_date}: {title}")
+                logging.info(f"Content length: {len(content)}")
+                
+                # Parse the date and set time to 00:00 (midnight) of that day
+                try:
+                    dt = datetime.strptime(article_date, '%d.%m.%Y')
+                    dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+                    published_at = int(dt.timestamp())
+                    published_at_iso = dt.isoformat()
+                except Exception as e:
+                    logging.error(f"Error parsing date {article_date}: {e}")
+                    continue
+                
+                # Create article with required structure matching Note.md format
+                article = NewsArticle()
+                article['id'] = str(uuid.uuid4())
+                article['text'] = content
+                
+                # Create metadata structure exactly as specified in Note.md
+                article['metadata'] = {
+                    'source': 'graininfo',
+                    'published_at': published_at,
+                    'published_at_iso': published_at_iso,
+                    'url': article_url,
+                    'header': title,
+                    'parsed_at': int(datetime.now().timestamp())
+                }
+                
+                yield article
+        
+        # Check for pagination and follow next pages if needed
+        # Look for "След." (Next) link
+        next_link = soup.find('a', string=re.compile(r'След\.', re.IGNORECASE))
+        if next_link and next_link.get('href'):
+            next_url = urljoin(response.url, next_link['href'])
+            logging.info(f"Following next page: {next_url}")
+            yield scrapy.Request(
+                url=next_url,
+                callback=self.parse,
+                errback=self.handle_error
+            )
+
+    def parse_article(self, response):
+        """Parse individual article page to extract content."""
+        logging.info(f"Parsing article: {response.url}")
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Extract article content from meta description tag
+        meta_description = soup.find('meta', attrs={'name': 'description'})
+        if meta_description and meta_description.get('content'):
+            text = meta_description['content'].strip()
+            logging.debug("Found content in meta description")
+        else:
+            logging.warning(f"No meta description found for URL: {response.url}")
+            return
+        
+        if not text or len(text.strip()) < 50:  # Minimum content length
+            logging.warning(f"Content too short for URL: {response.url}")
+            return
+        
+        # Parse the date and set time to 00:00 (midnight) of that day
+        article_date = response.meta['article_date']
         try:
-            # Parse XML with ElementTree
-            root = ET.fromstring(response.text)
-            
-            # Register namespaces
-            for prefix, uri in self.namespaces.items():
-                ET.register_namespace(prefix, uri)
-            
-            # Find all item elements
-            for item in root.findall('.//item'):
-                # Get URL and check if already processed
-                url = item.find('link')
-                if url is None or url.text is None:
-                    logging.warning("No URL found in item")
-                    continue
-                    
-                url = url.text
-                if url in self.processed_urls:
-                    logging.debug(f"Skipping already processed URL: {url}")
-                    continue
-                    
-                self.processed_urls.add(url)
-                
-                # Get title
-                title = item.find('title')
-                if title is None or title.text is None:
-                    logging.warning(f"No title found for URL: {url}")
-                    continue
-                    
-                # Get publication date
-                date_elem = item.find('pubDate')
-                if date_elem is None or date_elem.text is None:
-                    logging.warning(f"No date found for URL: {url}")
-                    continue
-                    
-                try:
-                    # Parse RFC 822 date format
-                    dt = datetime.strptime(date_elem.text, '%a, %d %b %Y %H:%M:%S %z')
-                    date_str = dt.strftime('%Y-%m-%d')
-                    
-                    # Only process today's and yesterday's articles
-                    if date_str not in self.target_dates:
-                        logging.debug(f"Skipping article from {date_str} (not today or yesterday): {url}")
-                        continue
-                    
-                    published_at = int(dt.timestamp())
-                    published_at_iso = dt.isoformat()
-                    logging.info(f"Processing article from {date_str}: {url}")
-                except Exception as e:
-                    logging.error(f"Error parsing date {date_elem.text}: {e}")
-                    continue
-                    
-                # Try to get content from yandex:full-text first
-                content = None
-                yandex_full_text = item.find('.//{http://news.yandex.ru}full-text')
-                if yandex_full_text is not None and yandex_full_text.text:
-                    content = yandex_full_text.text
-                    logging.debug("Found content in yandex:full-text")
-                
-                # If no yandex content, try turbo:content
-                if not content:
-                    turbo_content = item.find('.//{http://turbo.yandex.ru}content')
-                    if turbo_content is not None and turbo_content.text:
-                        content = turbo_content.text
-                        logging.debug("Found content in turbo:content")
-                
-                # If still no content, try description
-                if not content:
-                    description = item.find('description')
-                    if description is not None and description.text:
-                        content = description.text
-                        logging.debug("Found content in description")
-                
-                if not content:
-                    logging.warning(f"No content found for URL: {url}")
-                    continue
-                
-                # Clean HTML from content
-                soup = BeautifulSoup(content, 'html.parser')
-                text = soup.get_text(separator='\n', strip=True)
-                
-                # Get author if available
-                author = item.find('.//{http://purl.org/dc/elements/1.1/}creator')
-                author_text = author.text.strip() if author is not None and author.text else None
-                    
-                # Get category if available
-                category = item.find('category')
-                category_text = category.text.strip() if category is not None and category.text else None
-                    
-                # Create article with required structure matching Note.md format
-                article = NewsArticle()
-                article['id'] = str(uuid.uuid4())
-                article['text'] = text
-                
-                # Create metadata structure exactly as specified in Note.md
-                article['metadata'] = {
-                    'source': 'graininfo',
-                    'published_at': published_at,
-                    'published_at_iso': published_at_iso,
-                    'url': url,
-                    'header': title.text,
-                    'parsed_at': int(datetime.now().timestamp())
-                }
-                
-                # Debug: Print found content
-                logging.info(f"Processing article: {url}")
-                logging.info(f"Title found: {title.text}")
-                logging.info(f"Text length: {len(article['text'])}")
-                logging.info(f"Article date: {date_str}")
-                
-                yield article
-                
-        except ET.ParseError as e:
-            logging.error(f"Error parsing XML: {e}")
-            # Try alternative parsing with BeautifulSoup
-            soup = BeautifulSoup(response.text, 'xml')
-            for item in soup.find_all('item'):
-                # Process items using BeautifulSoup
-                url = item.find('link')
-                if not url or not url.text:
-                    continue
-                    
-                url = url.text
-                if url in self.processed_urls:
-                    continue
-                    
-                self.processed_urls.add(url)
-                
-                title = item.find('title')
-                if not title or not title.text:
-                    continue
-                    
-                date_elem = item.find('pubDate')
-                if not date_elem or not date_elem.text:
-                    continue
-                    
-                try:
-                    dt = datetime.strptime(date_elem.text, '%a, %d %b %Y %H:%M:%S %z')
-                    date_str = dt.strftime('%Y-%m-%d')
-                    
-                    # Only process today's and yesterday's articles
-                    if date_str not in self.target_dates:
-                        logging.debug(f"Skipping article from {date_str} (not today or yesterday): {url}")
-                        continue
-                    
-                    published_at = int(dt.timestamp())
-                    published_at_iso = dt.isoformat()
-                    logging.info(f"Processing article from {date_str}: {url}")
-                except Exception as e:
-                    logging.error(f"Error parsing date {date_elem.text}: {e}")
-                    continue
-                    
-                # Try to get content from different sources
-                content = None
-                yandex_full_text = item.find('yandex:full-text')
-                if yandex_full_text and yandex_full_text.text:
-                    content = yandex_full_text.text
-                    logging.debug("Found content in yandex:full-text")
-                
-                if not content:
-                    turbo_content = item.find('turbo:content')
-                    if turbo_content and turbo_content.text:
-                        content = turbo_content.text
-                        logging.debug("Found content in turbo:content")
-                
-                if not content:
-                    description = item.find('description')
-                    if description and description.text:
-                        content = description.text
-                        logging.debug("Found content in description")
-                
-                if not content:
-                    logging.warning(f"No content found for URL: {url}")
-                    continue
-                
-                # Clean HTML from content
-                text = BeautifulSoup(content, 'html.parser').get_text(separator='\n', strip=True)
-                
-                # Get author and category
-                author = item.find('dc:creator')
-                author_text = author.text.strip() if author and author.text else None
-                
-                category = item.find('category')
-                category_text = category.text.strip() if category and category.text else None
-                
-                # Create article with required structure matching Note.md format
-                article = NewsArticle()
-                article['id'] = str(uuid.uuid4())
-                article['text'] = text
-                
-                # Create metadata structure exactly as specified in Note.md
-                article['metadata'] = {
-                    'source': 'graininfo',
-                    'published_at': published_at,
-                    'published_at_iso': published_at_iso,
-                    'url': url,
-                    'header': title.text,
-                    'parsed_at': int(datetime.now().timestamp())
-                }
-                
-                logging.info(f"Processing article: {url}")
-                logging.info(f"Title found: {title.text}")
-                logging.info(f"Text length: {len(article['text'])}")
-                logging.info(f"Article date: {date_str}")
-                
-                yield article
+            # Convert DD.MM.YYYY to datetime with time set to 00:00
+            dt = datetime.strptime(article_date, '%d.%m.%Y')
+            # Set time to midnight (00:00:00)
+            dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+            published_at = int(dt.timestamp())
+            published_at_iso = dt.isoformat()
+        except Exception as e:
+            logging.error(f"Error parsing date {article_date}: {e}")
+            return
+        
+        # Create article with required structure matching Note.md format
+        article = NewsArticle()
+        article['id'] = str(uuid.uuid4())
+        article['text'] = text
+        
+        # Create metadata structure exactly as specified in Note.md
+        article['metadata'] = {
+            'source': 'graininfo',
+            'published_at': published_at,
+            'published_at_iso': published_at_iso,
+            'url': response.url,
+            'header': response.meta['title'],
+            'parsed_at': int(datetime.now().timestamp())
+        }
+        
+        # Debug: Print found content
+        logging.info(f"Processing article: {response.url}")
+        logging.info(f"Title found: {response.meta['title']}")
+        logging.info(f"Text length: {len(article['text'])}")
+        logging.info(f"Article date: {article_date}")
+        
+        yield article
 
     def handle_error(self, failure):
         logging.error(f"Request failed: {failure.value}")
