@@ -9,7 +9,7 @@ import uuid
 class ForbesSpider(XMLFeedSpider):
     name = 'forbes'
     allowed_domains = ['forbes.ru']
-    start_urls = ['https://www.forbes.ru/newrss.xml']
+    start_urls = ['http://90.156.202.84:33000/forbes/newrss']
     
     # Class-level set to track processed URLs across all instances
     processed_urls = set()
@@ -19,27 +19,37 @@ class ForbesSpider(XMLFeedSpider):
     itertag = 'item'
     
     custom_settings = {
-        'USER_AGENT': 'YandexNews',  # Default user agent
+        'USER_AGENT': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
         'DEFAULT_REQUEST_HEADERS': {
-            'Accept': 'application/rss+xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,*/*;q=0.7',
-            'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Cache-Control': 'max-age=0',
+            'Sec-Ch-Ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Linux"',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Upgrade-Insecure-Requests': '1',
             'Connection': 'keep-alive',
         },
-        'ROBOTSTXT_OBEY': True,
-        'REDIRECT_ENABLED': True,
-        'REDIRECT_MAX_TIMES': 5,
+        'ROBOTSTXT_OBEY': False,  # Disable robots.txt to avoid detection
+        'REDIRECT_ENABLED': False,  # Disable redirects to avoid captcha
         'COOKIES_ENABLED': True,
         'DOWNLOAD_TIMEOUT': 30,
-        'RETRY_TIMES': 5,
-        'RETRY_HTTP_CODES': [500, 502, 503, 504, 522, 524, 408, 429, 302],
+        'RETRY_TIMES': 0,  # Disable retries to avoid multiple captcha attempts
         'DOWNLOADER_MIDDLEWARES': {
-            'scrapy.downloadermiddlewares.redirect.RedirectMiddleware': 900,
-            'news_parser.middlewares.RotateUserAgentMiddleware': 543,
+            'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,  # Disable proxy
+            'scrapy.downloadermiddlewares.redirect.RedirectMiddleware': None,  # Disable redirects
+            'scrapy.downloadermiddlewares.robotstxt.RobotsTxtMiddleware': None,  # Disable robots.txt
+            'news_parser.middlewares.RotateUserAgentMiddleware': None,  # Disable user agent rotation
         },
-        'COOKIES_DEBUG': True,  # Track cookie handling
-        'CONCURRENT_REQUESTS': 1,  # Reduce request rate
-        'DOWNLOAD_DELAY': 5  # Add delay between requests
+        'CONCURRENT_REQUESTS': 1,
+        'DOWNLOAD_DELAY': 10,  # Increase delay
+        'RANDOMIZE_DOWNLOAD_DELAY': True,
+        'DOWNLOAD_DELAY_RANDOMIZE': 5,  # Add random delay up to 5 seconds
     }
     
     def __init__(self, *args, **kwargs):
@@ -62,10 +72,10 @@ class ForbesSpider(XMLFeedSpider):
                 errback=self.handle_error,
                 dont_filter=True,
                 meta={
-                    'dont_redirect': False,
+                    'dont_redirect': True,  # Prevent redirects to captcha
                     'handle_httpstatus_list': [302, 403, 503],
                     'dont_merge_cookies': False,
-                    'max_retry_times': 5
+                    'max_retry_times': 0
                 }
             )
 
@@ -81,6 +91,17 @@ class ForbesSpider(XMLFeedSpider):
         logging.debug(f"Parsing URL: {response.url}")
         logging.debug(f"Response status: {response.status}")
         logging.debug(f"Response headers: {response.headers}")
+        
+        # Handle captcha redirect
+        if response.status == 302:
+            location = response.headers.get('Location', b'').decode('utf-8')
+            if 'captcha' in location.lower():
+                logging.error(f"Captcha detected! Redirect URL: {location}")
+                logging.error("Forbes is blocking the scraper. Consider using a different approach.")
+                return
+            else:
+                logging.warning(f"Unexpected redirect to: {location}")
+                return
         
         # Check if we got a valid XML response
         if not response.text.strip().startswith('<?xml'):
